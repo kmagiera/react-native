@@ -11,16 +11,12 @@ package com.facebook.react.uimanager;
 
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import android.util.DisplayMetrics;
 
-import com.facebook.csslayout.CSSLayoutContext;
-import com.facebook.infer.annotation.Assertions;
 import com.facebook.react.animation.Animation;
-import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.OnBatchCompleteListener;
@@ -29,7 +25,6 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.uimanager.debug.NotThreadSafeViewHierarchyUpdateDebugListener;
 import com.facebook.react.uimanager.events.EventDispatcher;
 import com.facebook.systrace.Systrace;
@@ -408,6 +403,26 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
       Callback success,
       Callback error) {
     mUIImplementation.configureNextLayoutAnimation(config, success, error);
+  }
+
+  @ReactMethod
+  public void createAnimatedNode(int animatedNodeTag, ReadableMap nodeConfig) {
+    mUIImplementation.createAnimatedNode(animatedNodeTag, nodeConfig);
+  }
+
+  @ReactMethod
+  public void startAnimatingNode(int animatedNodeTag, ReadableMap animationConfig) {
+    mUIImplementation.startAnimatingNode(animatedNodeTag, animationConfig);
+  }
+
+  @ReactMethod
+  public void connectAnimatedNodes(int parentNodeTag, int childNodeTag) {
+    mUIImplementation.connectAnimatedNodes(parentNodeTag, childNodeTag);
+  }
+
+  @ReactMethod
+  public void connectAnimatedNodeToView(int animatedNodeTag, int viewTag) {
+    mUIImplementation.connectAnimatedNodeToView(animatedNodeTag, viewTag);
   }
 
   /**

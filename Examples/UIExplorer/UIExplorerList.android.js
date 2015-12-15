@@ -23,6 +23,7 @@ var {
 var UIExplorerListBase = require('./UIExplorerListBase');
 
 var COMPONENTS = [
+  require('./AnimatedExample'),
   require('./ImageExample'),
   require('./ProgressBarAndroidExample'),
   require('./ScrollViewSimpleExample'),

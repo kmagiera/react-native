@@ -129,6 +129,8 @@ var styles = StyleSheet.create({
   },
 });
 
-AppRegistry.registerComponent('UIExplorerApp', () => UIExplorerApp);
+var Playground = require('./Playground');
 
-module.exports = UIExplorerApp;
+AppRegistry.registerComponent('UIExplorerApp', () => Playground);
+
+module.exports = Playground;
