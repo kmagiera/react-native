@@ -414,9 +414,24 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
     mUIImplementation.configureNextLayoutAnimation(config, success, error);
   }
 
-  @Override
-  public void onBatchStarted() {
-    // no-op
+  @ReactMethod
+  public void createAnimatedNode(int animatedNodeTag, ReadableMap nodeConfig) {
+    mUIImplementation.createAnimatedNode(animatedNodeTag, nodeConfig);
+  }
+
+  @ReactMethod
+  public void startAnimatingNode(int animatedNodeTag, ReadableMap animationConfig) {
+    mUIImplementation.startAnimatingNode(animatedNodeTag, animationConfig);
+  }
+
+  @ReactMethod
+  public void connectAnimatedNodes(int parentNodeTag, int childNodeTag) {
+    mUIImplementation.connectAnimatedNodes(parentNodeTag, childNodeTag);
+  }
+
+  @ReactMethod
+  public void connectAnimatedNodeToView(int animatedNodeTag, int viewTag) {
+    mUIImplementation.connectAnimatedNodeToView(animatedNodeTag, viewTag);
   }
 
   /**
