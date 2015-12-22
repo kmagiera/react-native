@@ -168,10 +168,10 @@ public class UIImplementation {
    * Invoked by React to create a new node with a given tag has its properties changed.
    */
   public void updateView(int tag, String className, ReadableMap props) {
-    ViewManager viewManager = mViewManagers.get(className);
-    if (viewManager == null) {
-      throw new IllegalViewOperationException("Got unknown view type: " + className);
-    }
+//    ViewManager viewManager = mViewManagers.get(className);
+//    if (viewManager == null) {
+//      throw new IllegalViewOperationException("Got unknown view type: " + className);
+//    }
     ReactShadowNode cssNode = mShadowNodeRegistry.getNode(tag);
     if (cssNode == null) {
       throw new IllegalViewOperationException("Trying to update non-existent view with tag " + tag);
