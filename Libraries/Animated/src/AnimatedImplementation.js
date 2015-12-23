@@ -255,7 +255,7 @@ class TimingAnimation extends Animation {
         (this._toValue - this._fromValue)
     );
     if (this.__active) {
-      this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+      // this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
     }
   }
 
@@ -345,7 +345,7 @@ class DecayAnimation extends Animation {
 
     this._lastValue = value;
     if (this.__active) {
-      this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+      // this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
     }
   }
 
