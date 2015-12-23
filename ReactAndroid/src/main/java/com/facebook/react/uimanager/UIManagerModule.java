@@ -79,6 +79,7 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
 
   private int mNextRootViewTag = 1;
   private int mBatchId = 0;
+  private boolean mIsProcessingJSBatch = false;
 
   public UIManagerModule(
       ReactApplicationContext reactContext,
@@ -450,16 +451,32 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
    */
   @Override
   public void onBatchComplete() {
+    dispatchViewUpdates();
+    mIsProcessingJSBatch = false;
+  }
+
+  private void dispatchViewUpdates() {
     int batchId = mBatchId;
     mBatchId++;
 
     SystraceMessage.beginSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE, "onBatchCompleteUI")
-          .arg("BatchId", batchId)
-          .flush();
+            .arg("BatchId", batchId)
+            .flush();
     try {
       mUIImplementation.dispatchViewUpdates(mEventDispatcher, batchId);
     } finally {
       Systrace.endSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE);
+    }
+  }
+
+  @Override
+  public void onBatchStarted() {
+    mIsProcessingJSBatch = true;
+  }
+
+  /*package*/void dispatchViewUpdatesIfNotInJSBatch() {
+    if (!mIsProcessingJSBatch) {
+      dispatchViewUpdates();
     }
   }
 
