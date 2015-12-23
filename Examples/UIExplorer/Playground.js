@@ -21,43 +21,53 @@ var UIExplorerButton = require('./UIExplorerButton');
 var FadeInView = React.createClass({
   getInitialState: function() {
     return {
+      // fadeAnim: new Animated.Value(0), // opacity 0
       fadeAnim: new Animated.Value(0), // opacity 0
       someAnim: new Animated.Value(0),
     }
   },
 
   componentDidMount: function() {
-    Animated.timing(       // Uses easing functions
+    // Animated.timing(       // Uses easing functions
+    //   this.state.fadeAnim, // The value to drive
+    //   {
+    //     toValue: 100,        // Target
+    //     duration: 2000,    // Configuration
+    //   },
+    // ).start();             // Don't forget start!
+    // Animated.timing(       // Uses easing functions
+    //   this.state.someAnim, // The value to drive
+    //   {
+    //     toValue: 1,        // Target
+    //     duration: 2000,    // Configuration
+    //   },
+    // ).start();             // Don't forget start!
+    Animated.decay(       // Uses easing functions
       this.state.fadeAnim, // The value to drive
       {
-        toValue: 1,        // Target
-        duration: 2000,    // Configuration
+        velocity: 0.1,
       },
-    ).start();             // Don't forget start!
-    Animated.timing(       // Uses easing functions
-      this.state.someAnim, // The value to drive
-      {
-        toValue: 1,        // Target
-        duration: 2000,    // Configuration
-      },
-    ).start();             // Don't forget start!
+    ).start();      
   },
 
   render: function() {
     return (
       <Animated.View   // Special animatable View
         style={{
-          opacity: this.state.fadeAnim,  // Binds
           transform: [   // Array order matters
-            {translateX: this.state.someAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 100],
-            })},
+            {translateX: this.state.fadeAnim},
           ],
-          width: this.state.someAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [200, 100],
-          })
+          // opacity: this.state.fadeAnim,  // Binds
+          // transform: [   // Array order matters
+          //   {translateX: this.state.someAnim.interpolate({
+          //     inputRange: [0, 1],
+          //     outputRange: [0, 100],
+          //   })},
+          // ],
+          // width: this.state.someAnim.interpolate({
+          //   inputRange: [0, 1],
+          //   outputRange: [200, 100],
+          // })
         }}>
         {this.props.children}
       </Animated.View>

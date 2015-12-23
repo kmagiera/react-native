@@ -223,7 +223,7 @@ class TimingAnimation extends Animation {
           type: 'frames',
           frames: mults,
           toValue: this._toValue,
-        })
+        });
         /***********************************/
         // this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
       }
@@ -299,6 +299,8 @@ class DecayAnimation extends Animation {
     fromValue: number,
     onUpdate: (value: number) => void,
     onEnd: ?EndCallback,
+    previousAnimation: ?Animation,
+    animatedValue: any
   ): void {
     this.__active = true;
     this._lastValue = fromValue;
@@ -306,7 +308,25 @@ class DecayAnimation extends Animation {
     this._onUpdate = onUpdate;
     this.__onEnd = onEnd;
     this._startTime = Date.now();
-    this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+    // this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+    /***********************************/
+    var frameDuration = 1000.0/60.0;
+    var dt = frameDuration;
+    var lastValue = 0;
+    var value = 0;
+    var mults = [];
+    do {
+      lastValue = value;
+      mults.push(value);
+      value = (this._velocity / (1 - this._deceleration)) *
+        (1 - Math.exp(-(1 - this._deceleration) * dt));
+      dt += frameDuration;
+    } while (Math.abs(lastValue - value) >= 0.1);
+    UIManager.startAnimatingNode(animatedValue.__getNativeTag(), {
+      type: 'frames',
+      frames: mults,
+    });
+    /***********************************/
   }
 
   onUpdate(): void {
@@ -339,7 +359,6 @@ class DecayAnimation extends Animation {
 type SpringAnimationConfig = AnimationConfig & {
   toValue: number | AnimatedValue | {x: number, y: number} | AnimatedValueXY;
   overshootClamping?: bool;
-  restDisplacementThreshold?: number;
   restSpeedThreshold?: number;
   velocity?: number | {x: number, y: number};
   bounciness?: number;
