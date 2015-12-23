@@ -19,7 +19,7 @@ import android.util.DisplayMetrics;
 import com.facebook.react.animation.Animation;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.LifecycleEventListener;
-import com.facebook.react.bridge.OnBatchCompleteListener;
+import com.facebook.react.bridge.JSBatchListener;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -60,7 +60,7 @@ import com.facebook.systrace.SystraceMessage;
  * TODO(5483063): Don't dispatch the view hierarchy at the end of a batch if no UI changes occurred
  */
 public class UIManagerModule extends ReactContextBaseJavaModule implements
-    OnBatchCompleteListener, LifecycleEventListener {
+        JSBatchListener, LifecycleEventListener {
 
   // Keep in sync with ReactIOSTagHandles JS module - see that file for an explanation on why the
   // increment here is 10
@@ -72,6 +72,7 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
 
   private int mNextRootViewTag = 1;
   private int mBatchId = 0;
+  private boolean mIsProcessingJSBatch = false;
 
   public UIManagerModule(
       ReactApplicationContext reactContext,
@@ -441,16 +442,31 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
    */
   @Override
   public void onBatchComplete() {
+    dispatchViewUpdates();
+    mIsProcessingJSBatch = false;
+  }
+
+  private void dispatchViewUpdates() {
     int batchId = mBatchId;
     mBatchId++;
 
     SystraceMessage.beginSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE, "onBatchCompleteUI")
-          .arg("BatchId", batchId)
-          .flush();
+            .arg("BatchId", batchId)
+            .flush();
     try {
       mUIImplementation.dispatchViewUpdates(mEventDispatcher, batchId);
     } finally {
       Systrace.endSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE);
+    }
+  }
+
+  public void onBatchStarted() {
+    mIsProcessingJSBatch = true;
+  }
+
+  /*package*/void dispatchViewUpdatesIfNotInJSBatch() {
+    if (!mIsProcessingJSBatch) {
+      dispatchViewUpdates();
     }
   }
 

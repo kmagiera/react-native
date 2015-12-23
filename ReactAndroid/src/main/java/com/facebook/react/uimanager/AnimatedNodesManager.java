@@ -419,6 +419,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
   public void runUpdates(UIImplementation uiImplementation) {
     // Assert on native thread
+    runAnimationStep(mLastFrameTimeNanos.get());
     for (int i = 0; i < mEnqueuedUpdates.size(); i++) {
       UpdateViewData data = mEnqueuedUpdates.get(i);
 //      Log.e("CAT", "Update " + data.mViewTag + ", " + data.mProps);
@@ -457,7 +458,8 @@ import java.util.concurrent.atomic.AtomicLong;
       mReactContext.runOnNativeModulesQueueThread(new Runnable() {
         @Override
         public void run() {
-          runAnimationStep(frameTimeNanos);
+//          runAnimationStep(frameTimeNanos);
+          mReactContext.getNativeModule(UIManagerModule.class).dispatchViewUpdatesIfNotInJSBatch();
         }
       });
       ReactChoreographer.getInstance().postFrameCallback(

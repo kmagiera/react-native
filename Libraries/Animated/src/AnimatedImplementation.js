@@ -225,7 +225,7 @@ class TimingAnimation extends Animation {
           toValue: this._toValue,
         })
         /***********************************/
-        this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+        // this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
       }
     };
     if (this._delay) {
