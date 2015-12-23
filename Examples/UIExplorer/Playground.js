@@ -24,6 +24,7 @@ var FadeInView = React.createClass({
       // fadeAnim: new Animated.Value(0), // opacity 0
       fadeAnim: new Animated.Value(0), // opacity 0
       someAnim: new Animated.Value(0),
+      vectorAnim: new Animated.ValueXY(),
     }
   },
 
@@ -42,12 +43,16 @@ var FadeInView = React.createClass({
     //     duration: 2000,    // Configuration
     //   },
     // ).start();             // Don't forget start!
-    Animated.decay(       // Uses easing functions
-      this.state.fadeAnim, // The value to drive
-      {
-        velocity: 0.1,
-      },
-    ).start();      
+    // Animated.decay(       // Uses easing functions
+    //   this.state.fadeAnim, // The value to drive
+    //   {
+    //     velocity: 0.1,
+    //   },
+    // ).start();      
+    Animated.timing(
+      this.state.vectorAnim,
+      {toValue: {x: 100, y: 200}},
+    ).start();
   },
 
   render: function() {
@@ -55,7 +60,8 @@ var FadeInView = React.createClass({
       <Animated.View   // Special animatable View
         style={{
           transform: [   // Array order matters
-            {translateX: this.state.fadeAnim},
+            {translateX: this.state.vectorAnim.x,
+             translateY: this.state.vectorAnim.y},
           ],
           // opacity: this.state.fadeAnim,  // Binds
           // transform: [   // Array order matters
