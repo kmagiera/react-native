@@ -1137,7 +1137,9 @@ class AnimatedStyle extends AnimatedWithChildren {
   __nativeConfig(): any {
     var styleConfig = {};
     for (let styleKey in this._style) {
-      styleConfig[styleKey] = this._style[styleKey].__getNativeTag();
+      if (this._style[styleKey] instanceof Animated) {
+        styleConfig[styleKey] = this._style[styleKey].__getNativeTag();
+      }
     }
     return {
       type: 'style',
