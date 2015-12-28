@@ -1,5 +1,6 @@
 package com.facebook.react.uimanager;
 
+import android.os.SystemClock;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.util.SparseArray;
@@ -12,6 +13,11 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
+import com.facebook.rebound.BaseSpringSystem;
+import com.facebook.rebound.Spring;
+import com.facebook.rebound.SpringConfig;
+import com.facebook.rebound.SpringLooper;
+import com.facebook.rebound.SpringSystem;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -225,6 +231,67 @@ import java.util.concurrent.atomic.AtomicLong;
     public abstract boolean runAnimationStep(long frameTimeNanos);
   }
 
+  private static class MySpringLooper extends SpringLooper {
+    @Override
+    public void start() {
+    }
+
+    @Override
+    public void stop() {
+    }
+  }
+
+  private static class MySpringSystem extends BaseSpringSystem {
+    public MySpringSystem() {
+      super(new MySpringLooper());
+    }
+  }
+
+  private static class SpringAnimation extends AnimationDriver {
+
+    private final BaseSpringSystem mSpringSystem;
+    private final Spring mSpring;
+    private long mLastTime;
+    private boolean mSpringStarted;
+
+    SpringAnimation(ReadableMap config) {
+      boolean overshootClamping = config.getBoolean("overshootClamping");
+      double restDisplacementThreshold = config.getDouble("restDisplacementThreshold");
+      double restSpeedThreshold = config.getDouble("restSpeedThreshold");
+      double tension = config.getDouble("tension");
+      double friction = config.getDouble("friction");
+//      double initialVelocity = config.getDouble("initialVelocity");
+      double toValue = config.getDouble("toValue");
+
+      mSpringSystem = new MySpringSystem();
+      mSpring = mSpringSystem.createSpring()
+              .setSpringConfig(new SpringConfig(tension, friction))
+              .setEndValue(toValue)
+//              .setVelocity(initialVelocity)
+              .setOvershootClampingEnabled(overshootClamping)
+              .setRestDisplacementThreshold(restDisplacementThreshold)
+              .setRestSpeedThreshold(restSpeedThreshold);
+    }
+
+    @Override
+    public boolean runAnimationStep(long frameTimeNanos) {
+      long frameTimeMillis = frameTimeNanos / 1000000;
+      if (!mSpringStarted) {
+        mLastTime = frameTimeMillis;
+        mSpring.setCurrentValue(mAnimatedValue.mValue, false);
+        mSpringStarted = true;
+      }
+      long ts = frameTimeMillis - mLastTime;
+//      Log.e("CAT", "Value " + mAnimatedValue.mValue + ", " + ts + ", " + frameTimeMillis);
+      mSpringSystem.loop(frameTimeMillis - mLastTime);
+      mLastTime = frameTimeMillis;
+      mAnimatedValue.mValue = mSpring.getCurrentValue();
+      mHasFinished = mSpring.isAtRest();
+//      Log.e("CAT", "RUN SPRING " + ts + " cur " + mSpring.getCurrentValue() + ", " + mSpring.isAtRest() + ", " + mSpring.getEndValue());
+      return true;
+    }
+  }
+
   private static class FrameBasedAnimation extends AnimationDriver {
 
     private long mStartFrameTimeNanos = -1;
@@ -339,6 +406,8 @@ import java.util.concurrent.atomic.AtomicLong;
     final AnimationDriver animation;
     if ("frames".equals(type)) {
       animation = new FrameBasedAnimation(animationConfig);
+    } else if ("spring".equals(type)) {
+      animation = new SpringAnimation(animationConfig);
     } else {
       throw new JSApplicationIllegalArgumentException("Unsupported animation type: " + type);
     }

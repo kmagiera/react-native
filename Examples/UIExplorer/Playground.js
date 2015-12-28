@@ -25,6 +25,7 @@ var FadeInView = React.createClass({
       fadeAnim: new Animated.Value(0), // opacity 0
       someAnim: new Animated.Value(0),
       vectorAnim: new Animated.ValueXY(),
+      springAnim: new Animated.Value(0),
     }
   },
 
@@ -49,9 +50,16 @@ var FadeInView = React.createClass({
     //     velocity: 0.1,
     //   },
     // ).start();      
-    Animated.timing(
-      this.state.vectorAnim,
-      {toValue: {x: 100, y: 200}},
+    // Animated.timing(
+    //   this.state.vectorAnim,
+    //   {toValue: {x: 100, y: 200}},
+    // ).start();
+    Animated.spring(
+      this.state.springAnim,
+      {
+        toValue: 300,
+        friction: 1,
+      }
     ).start();
   },
 
@@ -60,9 +68,12 @@ var FadeInView = React.createClass({
       <Animated.View   // Special animatable View
         style={{
           transform: [   // Array order matters
-            {translateX: this.state.vectorAnim.x,
-             translateY: this.state.vectorAnim.y},
+            {translateX: this.state.springAnim},
           ],
+          // transform: [   // Array order matters
+          //   {translateX: this.state.vectorAnim.x,
+          //    translateY: this.state.vectorAnim.y},
+          // ],
           // opacity: this.state.fadeAnim,  // Binds
           // transform: [   // Array order matters
           //   {translateX: this.state.someAnim.interpolate({

@@ -440,6 +440,7 @@ class SpringAnimation extends Animation {
     onUpdate: (value: number) => void,
     onEnd: ?EndCallback,
     previousAnimation: ?Animation,
+    animatedValue: any,
   ): void {
     this.__active = true;
     this._startPosition = fromValue;
@@ -459,7 +460,19 @@ class SpringAnimation extends Animation {
         this._initialVelocity !== null) {
       this._lastVelocity = this._initialVelocity;
     }
-    this.onUpdate();
+    /***********************************/
+    UIManager.startAnimatingNode(animatedValue.__getNativeTag(), {
+      type: 'spring',
+      overshootClamping: this._overshootClamping,
+      restDisplacementThreshold: this._restDisplacementThreshold,
+      restSpeedThreshold: this._restSpeedThreshold,
+      tension: this._tension,
+      friction: this._friction,
+      initialVelocity: this._initialVelocity,
+      toValue: this._toValue,
+    });
+    /***********************************/
+    // this.onUpdate();
   }
 
   getInternalState(): Object {
