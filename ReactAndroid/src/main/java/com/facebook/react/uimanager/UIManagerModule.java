@@ -421,6 +421,11 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
   }
 
   @ReactMethod
+  public void setAnimatedNodeValue(int animatedNodeTag, double value) {
+    mUIImplementation.setAnimatedNodeValue(animatedNodeTag, value);
+  }
+
+  @ReactMethod
   public void startAnimatingNode(int animatedNodeTag, ReadableMap animationConfig) {
     mUIImplementation.startAnimatingNode(animatedNodeTag, animationConfig);
   }

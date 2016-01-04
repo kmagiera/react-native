@@ -1,6 +1,5 @@
 package com.facebook.react.uimanager;
 
-import android.os.SystemClock;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.util.SparseArray;
@@ -17,7 +16,6 @@ import com.facebook.rebound.BaseSpringSystem;
 import com.facebook.rebound.Spring;
 import com.facebook.rebound.SpringConfig;
 import com.facebook.rebound.SpringLooper;
-import com.facebook.rebound.SpringSystem;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -37,6 +35,7 @@ import java.util.concurrent.atomic.AtomicLong;
     private @Nullable List<AnimatedNode> mChildren; /* lazy-initialized when child is added */
     private int mVisitedIncommingNodes = 0;
     private int mIncommingNodes = 0;
+    public int mTag = -1;
 
     double mValue = Double.NaN;
 
@@ -141,27 +140,98 @@ import java.util.concurrent.atomic.AtomicLong;
     }
   }
 
+  private static double[] fromDoubleArray(ReadableArray ary) {
+    double[] res = new double[ary.size()];
+    for (int i = 0; i < res.length; i++) {
+      res[i] = ary.getDouble(i);
+    }
+    return res;
+  }
+
   private static class InterpolationAnimatedNode extends AnimatedNode {
 
-    private final double mInputRangeStart, mInputRangeEnd, mOutputRangeStart, mOutputRangeEnd;
+    private final double mInputRange[];
+    private final double mOutputRange[];
 
     InterpolationAnimatedNode(ReadableMap config) {
-      ReadableArray inputRange = config.getArray("inputRange");
-      mInputRangeStart = inputRange.getDouble(0);
-      mInputRangeEnd = inputRange.getDouble(1);
-      ReadableArray outputRange = config.getArray("outputRange");
-      mOutputRangeStart = outputRange.getDouble(0);
-      mOutputRangeEnd = outputRange.getDouble(1);
+      mInputRange = fromDoubleArray(config.getArray("inputRange"));
+      mOutputRange = fromDoubleArray(config.getArray("outputRange"));
     }
 
     @Override
     public void feedDataFromUpdatedParent(AnimatedNode parent) {
-      mValue = interpolate(parent.mValue);
+      int rangeIndex = findRangeIndex(parent.mValue, mInputRange);
+      mValue = interpolate(
+        parent.mValue,
+        mInputRange[rangeIndex],
+        mInputRange[rangeIndex + 1],
+        mOutputRange[rangeIndex],
+        mOutputRange[rangeIndex + 1]);
     }
 
-    private double interpolate(double value) {
-      return mOutputRangeStart + (mOutputRangeEnd - mOutputRangeStart) *
-              (value - mInputRangeStart) / (mInputRangeEnd - mInputRangeStart);
+    private static double interpolate(
+        double value,
+        double inputMin,
+        double inputMax,
+        double outputMin,
+        double outputMax) {
+      return outputMin + (outputMax - outputMin) *
+              (value - inputMin) / (inputMax - inputMin);
+    }
+
+    private static int findRangeIndex(double value, double[] ranges) {
+      int index;
+      for (index = 1; index < ranges.length - 1; index++) {
+        if (ranges[index] >= value) {
+          break;
+        }
+      }
+      return index - 1;
+    }
+  }
+
+  private static class AdditionAnimatedNode extends AnimatedNode {
+
+    private final AnimatedNodesManager mNodesManager;
+    private final int[] mInputNodes;
+
+    AdditionAnimatedNode(ReadableMap config, AnimatedNodesManager nodesManager) {
+      mNodesManager = nodesManager;
+      ReadableArray inputNodes = config.getArray("input");
+      mInputNodes = new int[inputNodes.size()];
+      for (int i = 0; i < mInputNodes.length; i++) {
+        mInputNodes[i] = inputNodes.getInt(i);
+      }
+    }
+
+    @Override
+    public void runAnimationStep(long frameTimeNanos) {
+      mValue = 0;
+      for (int i = 0; i < mInputNodes.length; i++) {
+        mValue += mNodesManager.mAnimatedNodes.get(mInputNodes[i]).mValue;
+      }
+    }
+  }
+
+  private static class MultiplicationAnimatedNode extends AnimatedNode {
+    private final AnimatedNodesManager mNodesManager;
+    private final int[] mInputNodes;
+
+    MultiplicationAnimatedNode(ReadableMap config, AnimatedNodesManager nodesManager) {
+      mNodesManager = nodesManager;
+      ReadableArray inputNodes = config.getArray("input");
+      mInputNodes = new int[inputNodes.size()];
+      for (int i = 0; i < mInputNodes.length; i++) {
+        mInputNodes[i] = inputNodes.getInt(i);
+      }
+    }
+
+    @Override
+    public void runAnimationStep(long frameTimeNanos) {
+      mValue = 1;
+      for (int i = 0; i < mInputNodes.length; i++) {
+        mValue *= mNodesManager.mAnimatedNodes.get(mInputNodes[i]).mValue;
+      }
     }
   }
 
@@ -282,12 +352,12 @@ import java.util.concurrent.atomic.AtomicLong;
         mSpringStarted = true;
       }
       long ts = frameTimeMillis - mLastTime;
-//      Log.e("CAT", "Value " + mAnimatedValue.mValue + ", " + ts + ", " + frameTimeMillis);
+      Log.e("CAT", "Value " + mAnimatedValue.mValue + ", " + ts + ", " + frameTimeMillis);
       mSpringSystem.loop(frameTimeMillis - mLastTime);
       mLastTime = frameTimeMillis;
       mAnimatedValue.mValue = mSpring.getCurrentValue();
       mHasFinished = mSpring.isAtRest();
-//      Log.e("CAT", "RUN SPRING " + ts + " cur " + mSpring.getCurrentValue() + ", " + mSpring.isAtRest() + ", " + mSpring.getEndValue());
+      Log.e("CAT", "RUN SPRING " + ts + " cur " + mSpring.getCurrentValue() + ", " + mSpring.isAtRest() + ", " + mSpring.getEndValue());
       return true;
     }
   }
@@ -386,10 +456,24 @@ import java.util.concurrent.atomic.AtomicLong;
       node = new InterpolationAnimatedNode(config);
     } else if ("props".equals(type)) {
       node = new PropsAnimatedNode(config, this);
+    } else if ("addition".equals(type)) {
+      node = new AdditionAnimatedNode(config, this);
+    } else if ("multiplication".equals(type)) {
+      node = new MultiplicationAnimatedNode(config, this);
     } else {
       throw new JSApplicationIllegalArgumentException("Unsupported node type: " + type);
     }
+    node.mTag = tag;
     mAnimatedNodes.put(tag, node);
+  }
+
+  public void setAnimatedNodeValue(int tag, double value) {
+    AnimatedNode node = mAnimatedNodes.get(tag);
+    if (node == null) {
+      throw new JSApplicationIllegalArgumentException("Animated node with tag " + tag +
+        " does not exists");
+    }
+    node.mValue = value;
   }
 
   public void startAnimatingNode(int animatedNodeTag, ReadableMap animationConfig) {
@@ -495,7 +579,12 @@ import java.util.concurrent.atomic.AtomicLong;
     mEnqueuedUpdates.clear();
     for (int i = 0; i < updatedPropNodes.size(); i++) {
       PropsAnimatedNode propNode = updatedPropNodes.get(i);
-      mEnqueuedUpdates.add(propNode.createUpdateViewData());
+      UpdateViewData data = propNode.createUpdateViewData();
+      if (data.mViewTag > 0) {
+        mEnqueuedUpdates.add(propNode.createUpdateViewData());
+      } else {
+        Log.e("CAT", "Invalid data from node " + propNode.mTag);
+      }
     }
   }
 
@@ -504,7 +593,7 @@ import java.util.concurrent.atomic.AtomicLong;
     runAnimationStep(mLastFrameTimeNanos.get());
     for (int i = 0; i < mEnqueuedUpdates.size(); i++) {
       UpdateViewData data = mEnqueuedUpdates.get(i);
-//      Log.e("CAT", "Update " + data.mViewTag + ", " + data.mProps);
+      Log.e("CAT", "Update " + data.mViewTag + ", " + data.mProps);
       uiImplementation.updateView(data.mViewTag, null, data.mProps);
     }
   }

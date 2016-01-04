@@ -34,13 +34,41 @@ type EndCallback = (result: EndResult) => void;
 
 var __nativeAnimatedTagCount = 1;
 
+var USE_NATIVE_ANIMATED = true;
+
+var NativeAPI = {
+  createAnimatedNode: function(tag, config) {
+    if (!USE_NATIVE_ANIMATED) return;
+    // console.log("Create animated", tag, config);
+    UIManager.createAnimatedNode(tag, config);
+  },
+  connectAnimatedNodes: function(parentTag, childTag) {
+    if (!USE_NATIVE_ANIMATED) return;
+    // console.log("Add child", parentTag, "->", childTag);
+    UIManager.connectAnimatedNodes(parentTag, childTag);
+  },
+  startAnimatingNode: function(nativeTag, config) {
+    if (!USE_NATIVE_ANIMATED) return;
+    // console.log("Start animating", nativeTag, config);
+    UIManager.startAnimatingNode(nativeTag, config);
+  },
+  setAnimatedNodeValue: function(tag, value) {
+    if (!USE_NATIVE_ANIMATED) return;
+    UIManager.setAnimatedNodeValue(tag, value);
+  },
+  connectAnimatedNodeToView: function(nodeTag, viewTag) {
+    if (!USE_NATIVE_ANIMATED) return;
+    // console.log("Set native view tag", viewTag, "for", nodeTag);
+    UIManager.connectAnimatedNodeToView(nodeTag, viewTag);
+  }
+};
+
 class Animated {
   __nativeTag: number;
   __getNativeTag(): number {
     if (this.__nativeTag === undefined) {
       this.__nativeTag = __nativeAnimatedTagCount++;
-      // console.log("Create animated", this.__nativeTag, this.__nativeConfig());
-      UIManager.createAnimatedNode(this.__nativeTag, this.__nativeConfig());
+      USE_NATIVE_ANIMATED && NativeAPI.createAnimatedNode(this.__nativeTag, this.__nativeConfig());
     }
     return this.__nativeTag;
   }
@@ -95,8 +123,7 @@ class AnimatedWithChildren extends Animated {
     this._children.push(child);
     var parentTag = this.__getNativeTag();
     var childTag = child.__getNativeTag();
-    // console.log("Add child", parentTag, "->", childTag);
-    UIManager.connectAnimatedNodes(parentTag, childTag);
+    NativeAPI.connectAnimatedNodes(parentTag, childTag);
   }
 
   __removeChild(child: Animated): void {
@@ -213,19 +240,20 @@ class TimingAnimation extends Animation {
         this.__debouncedOnEnd({finished: true});
       } else {
         this._startTime = Date.now();
-        /***********************************/
-        var frameDuration = 1000.0/60.0;
-        var mults = [];
-        for (var dt = 0.; dt <= this._duration; dt += frameDuration) {
-          mults.push(this._easing(dt / this._duration));
+        if (USE_NATIVE_ANIMATED) {
+          var frameDuration = 1000.0/60.0;
+          var mults = [];
+          for (var dt = 0.; dt <= this._duration; dt += frameDuration) {
+            mults.push(this._easing(dt / this._duration));
+          }
+          NativeAPI.startAnimatingNode(animatedValue.__getNativeTag(), {
+            type: 'frames',
+            frames: mults,
+            toValue: this._toValue,
+          });
+        } else {
+          this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
         }
-        UIManager.startAnimatingNode(animatedValue.__getNativeTag(), {
-          type: 'frames',
-          frames: mults,
-          toValue: this._toValue,
-        });
-        /***********************************/
-        // this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
       }
     };
     if (this._delay) {
@@ -255,7 +283,7 @@ class TimingAnimation extends Animation {
         (this._toValue - this._fromValue)
     );
     if (this.__active) {
-      // this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+      this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
     }
   }
 
@@ -308,25 +336,26 @@ class DecayAnimation extends Animation {
     this._onUpdate = onUpdate;
     this.__onEnd = onEnd;
     this._startTime = Date.now();
-    // this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
-    /***********************************/
-    var frameDuration = 1000.0/60.0;
-    var dt = frameDuration;
-    var lastValue = 0;
-    var value = 0;
-    var mults = [];
-    do {
-      lastValue = value;
-      mults.push(value);
-      value = (this._velocity / (1 - this._deceleration)) *
-        (1 - Math.exp(-(1 - this._deceleration) * dt));
-      dt += frameDuration;
-    } while (Math.abs(lastValue - value) >= 0.1);
-    UIManager.startAnimatingNode(animatedValue.__getNativeTag(), {
-      type: 'frames',
-      frames: mults,
-    });
-    /***********************************/
+    if (USE_NATIVE_ANIMATED) {
+      var frameDuration = 1000.0/60.0;
+      var dt = frameDuration;
+      var lastValue = 0;
+      var value = 0;
+      var mults = [];
+      do {
+        lastValue = value;
+        mults.push(value);
+        value = (this._velocity / (1 - this._deceleration)) *
+          (1 - Math.exp(-(1 - this._deceleration) * dt));
+        dt += frameDuration;
+      } while (Math.abs(lastValue - value) >= 0.1);
+      NativeAPI.startAnimatingNode(animatedValue.__getNativeTag(), {
+        type: 'frames',
+        frames: mults,
+      });
+    } else {
+      this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+    }
   }
 
   onUpdate(): void {
@@ -345,7 +374,7 @@ class DecayAnimation extends Animation {
 
     this._lastValue = value;
     if (this.__active) {
-      // this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+      this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
     }
   }
 
@@ -460,19 +489,20 @@ class SpringAnimation extends Animation {
         this._initialVelocity !== null) {
       this._lastVelocity = this._initialVelocity;
     }
-    /***********************************/
-    UIManager.startAnimatingNode(animatedValue.__getNativeTag(), {
-      type: 'spring',
-      overshootClamping: this._overshootClamping,
-      restDisplacementThreshold: this._restDisplacementThreshold,
-      restSpeedThreshold: this._restSpeedThreshold,
-      tension: this._tension,
-      friction: this._friction,
-      initialVelocity: this._initialVelocity,
-      toValue: this._toValue,
-    });
-    /***********************************/
-    // this.onUpdate();
+    if (USE_NATIVE_ANIMATED) {
+      NativeAPI.startAnimatingNode(animatedValue.__getNativeTag(), {
+        type: 'spring',
+        overshootClamping: this._overshootClamping,
+        restDisplacementThreshold: this._restDisplacementThreshold,
+        restSpeedThreshold: this._restSpeedThreshold,
+        tension: this._tension,
+        friction: this._friction,
+        initialVelocity: this._initialVelocity,
+        toValue: this._toValue,
+      });
+    } else {
+      this.onUpdate();
+    }
   }
 
   getInternalState(): Object {
@@ -626,6 +656,7 @@ class AnimatedValue extends AnimatedWithChildren {
       this._animation = null;
     }
     this._updateValue(value);
+    NativeAPI.setAnimatedNodeValue(this.__getNativeTag(), value);
   }
 
   /**
@@ -896,7 +927,7 @@ class AnimatedInterpolation extends AnimatedWithChildren {
   _interpolation: (input: number) => number | string;
 
   constructor(
-      parent: Animated, 
+      parent: Animated,
       interpolation: (input: number) => number | string,
       config: InterpolationConfigType) {
     super();
@@ -961,6 +992,13 @@ class AnimatedAddition extends AnimatedWithChildren {
     this._a.__removeChild(this);
     this._b.__removeChild(this);
   }
+
+  __nativeConfig(): any {
+    return {
+      type: 'addition',
+      input: [this._a.__getNativeTag(), this._b.__getNativeTag()],
+    }
+  }
 }
 
 class AnimatedMultiplication extends AnimatedWithChildren {
@@ -989,6 +1027,13 @@ class AnimatedMultiplication extends AnimatedWithChildren {
   __detach(): void {
     this._a.__removeChild(this);
     this._b.__removeChild(this);
+  }
+
+  __nativeConfig(): any {
+    return {
+      type: 'multiplication',
+      input: [this._a.__getNativeTag(), this._b.__getNativeTag()],
+    }
   }
 }
 
@@ -1137,12 +1182,27 @@ class AnimatedStyle extends AnimatedWithChildren {
   __nativeConfig(): any {
     var styleConfig = {};
     for (let styleKey in this._style) {
-      styleConfig[styleKey] = this._style[styleKey].__getNativeTag();
+      if (this._style[styleKey] instanceof Animated) {
+        styleConfig[styleKey] = this._style[styleKey].__getNativeTag();
+      } else {
+        // console.log("Non-animated style:", styleKey);
+      }
     }
     return {
       type: 'style',
       style: styleConfig,
     }
+  }
+
+  __getStaticProps(): any {
+    var staticProps = {};
+    for (let styleKey in this._style) {
+      let value = this._style[styleKey];
+      if (!(value instanceof Animated)) {
+        staticProps[styleKey] = value;
+      }
+    }
+    return staticProps;
   }
 }
 
@@ -1168,11 +1228,19 @@ class AnimatedProps extends Animated {
     this.__attach();
   }
 
-  setNativeViewTag(nativeViewTag: number): void {
+  setNativeView(nativeView: number): void {
+    if (!USE_NATIVE_ANIMATED) return;
     invariant(this._nativeViewTag === undefined, 'Native view tag already set.');
-    this._nativeViewTag = nativeViewTag;
-    // console.log("Set native view tag", nativeViewTag, "for", this.__getNativeTag());
-    UIManager.connectAnimatedNodeToView(this.__getNativeTag(), nativeViewTag);
+    this._nativeViewTag = findNodeHandle(nativeView);
+    NativeAPI.connectAnimatedNodeToView(this.__getNativeTag(), this._nativeViewTag);
+    var staticProps = {};
+    if (this._props.style) {
+      let staticProps = this._props.style.__getStaticProps();
+      if (Object.keys(staticProps).length > 0) {
+        // console.log("Static props", this._props.style.__getStaticProps());
+        nativeView.setNativeProps({style: staticProps});
+      }
+    }
   }
 
   __getValue(): Object {
@@ -1230,7 +1298,7 @@ class AnimatedProps extends Animated {
       }
     }
     return {
-      type: 'props', 
+      type: 'props',
       props: propsConfig,
     };
   }
@@ -1255,7 +1323,7 @@ function createAnimatedComponent(Component: any): any {
     }
 
     componentDidMount() {
-      this._propsAnimated.setNativeViewTag(findNodeHandle(this.refs[refName]));
+      this._propsAnimated.setNativeView(this.refs[refName]);
     }
 
     attachProps(nextProps) {
@@ -1270,8 +1338,8 @@ function createAnimatedComponent(Component: any): any {
       var callback = () => {
         if (this.refs[refName].setNativeProps) {
           var value = this._propsAnimated.__getAnimatedValue();
-          // console.log("Set native props", value);
-          // this.refs[refName].setNativeProps(value);
+          // console.log("Set native props", this._propsAnimated.__getNativeTag(), findNodeHandle(this.refs[refName]), value);
+          !USE_NATIVE_ANIMATED && this.refs[refName].setNativeProps(value);
         } else {
           this.forceUpdate();
         }
@@ -1281,6 +1349,9 @@ function createAnimatedComponent(Component: any): any {
         nextProps,
         callback,
       );
+      if (this.refs[refName]) {
+        this._propsAnimated.setNativeView(this.refs[refName]);
+      }
 
       // When you call detach, it removes the element from the parent list
       // of children. If it goes to 0, then the parent also detaches itself

@@ -518,6 +518,10 @@ public class UIImplementation {
     mAnimatedNodesManager.createAnimatedNode(animatedNodeTag, nodeConfig);
   }
 
+  public void setAnimatedNodeValue(int animatedNodeTag, double value) {
+    mAnimatedNodesManager.setAnimatedNodeValue(animatedNodeTag, value);
+  }
+
   public void startAnimatingNode(int animatedNodeTag, ReadableMap animationConfig) {
     mAnimatedNodesManager.startAnimatingNode(animatedNodeTag, animationConfig);
   }
