@@ -133,8 +133,9 @@ var styles = StyleSheet.create({
   },
 });
 
-var Playground = require('./Playground');
+// var App = require('./Playground');
+var App = require('./App/Examples/NavigationJankyExample');
 
-AppRegistry.registerComponent('UIExplorerApp', () => Playground);
+AppRegistry.registerComponent('UIExplorerApp', () => App);
 
-module.exports = Playground;
+module.exports = App;
