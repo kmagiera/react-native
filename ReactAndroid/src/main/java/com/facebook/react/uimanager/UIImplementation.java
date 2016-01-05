@@ -518,6 +518,10 @@ public class UIImplementation {
     mAnimatedNodesManager.createAnimatedNode(animatedNodeTag, nodeConfig);
   }
 
+  public void dropAnimatedNode(int animatedNodeTag) {
+    mAnimatedNodesManager.dropAnimatedNode(animatedNodeTag);
+  }
+
   public void setAnimatedNodeValue(int animatedNodeTag, double value) {
     mAnimatedNodesManager.setAnimatedNodeValue(animatedNodeTag, value);
   }
@@ -530,8 +534,16 @@ public class UIImplementation {
     mAnimatedNodesManager.connectAnimatedNodes(parentNodeTag, childNodeTag);
   }
 
+  public void disconnectAnimatedNodes(int parentNodeTag, int childNodeTag) {
+    mAnimatedNodesManager.disconnectAnimatedNodes(parentNodeTag, childNodeTag);
+  }
+
   public void connectAnimatedNodeToView(int animatedNodeTag, int viewTag) {
     mAnimatedNodesManager.connectAnimatedNodeToView(animatedNodeTag, viewTag);
+  }
+
+  public void disconnectAnimatedNodeFromView(int animatedNodeTag, int viewTag) {
+    mAnimatedNodesManager.disconnectAnimatedNodeFromView(animatedNodeTag, viewTag);
   }
 
   public void setJSResponder(int reactTag, boolean blockNativeResponder) {

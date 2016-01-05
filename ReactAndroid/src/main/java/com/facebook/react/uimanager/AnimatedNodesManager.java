@@ -17,12 +17,12 @@ import com.facebook.rebound.Spring;
 import com.facebook.rebound.SpringConfig;
 import com.facebook.rebound.SpringLooper;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -33,8 +33,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
   private static class AnimatedNode {
     private @Nullable List<AnimatedNode> mChildren; /* lazy-initialized when child is added */
-    private int mVisitedIncommingNodes = 0;
-    private int mIncommingNodes = 0;
+    private int mVisitedActiveIncomingNodes = 0;
+    private int mActiveIncomingNodes = 0;
+    private boolean mEnqueued = false;
     public int mTag = -1;
 
     double mValue = Double.NaN;
@@ -43,12 +44,40 @@ import java.util.concurrent.atomic.AtomicLong;
       if (mChildren == null) {
         mChildren = new ArrayList<>(DEFAULT_ANIMATED_NODE_CHILD_COUNT);
       }
-      child.mIncommingNodes++;
       Assertions.assertNotNull(mChildren).add(child);
+      if (mActiveIncomingNodes > 0) {
+        // node is active!, update children active count
+        child.incrementActiveIncomingNodes();
+      }
     }
 
-    public void prepareAnimationStep() {
-      mVisitedIncommingNodes = 0;
+    public void removeChild(AnimatedNode child) {
+      if (mChildren == null) {
+        return;
+      }
+      if (mChildren.remove(child)) {
+        if (mActiveIncomingNodes > 0) {
+          child.decrementActiveIncomingNodes();
+        }
+      }
+    }
+
+    public void incrementActiveIncomingNodes() {
+      mActiveIncomingNodes++;
+      if (mActiveIncomingNodes == 1 && mChildren != null) {
+        for (int i = 0; i < mChildren.size(); i++) {
+          mChildren.get(i).incrementActiveIncomingNodes();
+        }
+      }
+    }
+
+    public void decrementActiveIncomingNodes() {
+      mActiveIncomingNodes--;
+      if (mActiveIncomingNodes == 0 && mChildren != null) {
+        for (int i = 0; i < mChildren.size(); i++) {
+          mChildren.get(i).decrementActiveIncomingNodes();
+        }
+      }
     }
 
     public void feedDataFromUpdatedParent(AnimatedNode parent) {
@@ -118,10 +147,6 @@ import java.util.concurrent.atomic.AtomicLong;
         mPropMapping.put(propKey, nodeIndex);
       }
       mNodesManager = nodesManager;
-    }
-
-    public void setConnectedView(int viewTag) {
-      mConnectedViewTag = viewTag;
     }
 
     public UpdateViewData createUpdateViewData() {
@@ -352,12 +377,12 @@ import java.util.concurrent.atomic.AtomicLong;
         mSpringStarted = true;
       }
       long ts = frameTimeMillis - mLastTime;
-      Log.e("CAT", "Value " + mAnimatedValue.mValue + ", " + ts + ", " + frameTimeMillis);
+//      Log.e("CAT", "Value " + mAnimatedValue.mValue + ", " + ts + ", " + frameTimeMillis);
       mSpringSystem.loop(frameTimeMillis - mLastTime);
       mLastTime = frameTimeMillis;
       mAnimatedValue.mValue = mSpring.getCurrentValue();
       mHasFinished = mSpring.isAtRest();
-      Log.e("CAT", "RUN SPRING " + ts + " cur " + mSpring.getCurrentValue() + ", " + mSpring.isAtRest() + ", " + mSpring.getEndValue());
+//      Log.e("CAT", "RUN SPRING " + ts + " cur " + mSpring.getCurrentValue() + ", " + mSpring.isAtRest() + ", " + mSpring.getEndValue());
       return true;
     }
   }
@@ -433,6 +458,7 @@ import java.util.concurrent.atomic.AtomicLong;
   private final SparseArray<AnimatedNode> mAnimatedNodes = new SparseArray<>();
   private final ArrayList<AnimationDriver> mActiveAnimations = new ArrayList<>();
   private final ArrayList<UpdateViewData> mEnqueuedUpdates = new ArrayList<>();
+  private final ArrayList<AnimatedNode> mUpdatedNodes = new ArrayList<>();
   private final AnimatedFrameCallback mAnimatedFrameCallback;
 
   public AnimatedNodesManager(ReactContext reactContext) {
@@ -450,6 +476,7 @@ import java.util.concurrent.atomic.AtomicLong;
       node = new StyleAnimatedNode(config, this);
     } else if ("value".equals(type)) {
       node = new ValueAnimatedNode(config);
+      mUpdatedNodes.add(node);
     } else if ("transform".equals(type)) {
       node = new TransformAnimatedNode(config, this);
     } else if ("interpolation".equals(type)) {
@@ -467,6 +494,10 @@ import java.util.concurrent.atomic.AtomicLong;
     mAnimatedNodes.put(tag, node);
   }
 
+  public void dropAnimatedNode(int tag) {
+    mAnimatedNodes.remove(tag);
+  }
+
   public void setAnimatedNodeValue(int tag, double value) {
     AnimatedNode node = mAnimatedNodes.get(tag);
     if (node == null) {
@@ -474,6 +505,7 @@ import java.util.concurrent.atomic.AtomicLong;
         " does not exists");
     }
     node.mValue = value;
+    mUpdatedNodes.add(node);
   }
 
   public void startAnimatingNode(int animatedNodeTag, ReadableMap animationConfig) {
@@ -496,6 +528,7 @@ import java.util.concurrent.atomic.AtomicLong;
       throw new JSApplicationIllegalArgumentException("Unsupported animation type: " + type);
     }
     animation.mAnimatedValue = (ValueAnimatedNode) node;
+    node.incrementActiveIncomingNodes();
     mActiveAnimations.add(animation);
   }
 
@@ -513,6 +546,20 @@ import java.util.concurrent.atomic.AtomicLong;
     parentNode.addChild(childNode);
   }
 
+  public void disconnectAnimatedNodes(int parentNodeTag, int childNodeTag) {
+    AnimatedNode parentNode = mAnimatedNodes.get(parentNodeTag);
+    if (parentNode == null) {
+      throw new JSApplicationIllegalArgumentException("Animated node with tag " + parentNodeTag +
+        " does not exists");
+    }
+    AnimatedNode childNode = mAnimatedNodes.get(childNodeTag);
+    if (childNode == null) {
+      throw new JSApplicationIllegalArgumentException("Animated node with tag " + childNodeTag +
+        " does not exists");
+    }
+    parentNode.removeChild(childNode);
+  }
+
   public void connectAnimatedNodeToView(int animatedNodeTag, int viewTag) {
     AnimatedNode node = mAnimatedNodes.get(animatedNodeTag);
     if (node == null) {
@@ -523,42 +570,71 @@ import java.util.concurrent.atomic.AtomicLong;
       throw new JSApplicationIllegalArgumentException("Animated node connected to view should be" +
               "of type " + PropsAnimatedNode.class.getName());
     }
-    ((PropsAnimatedNode) node).setConnectedView(viewTag);
+    PropsAnimatedNode propsAnimatedNode = (PropsAnimatedNode) node;
+    if (propsAnimatedNode.mConnectedViewTag != -1) {
+      throw new JSApplicationIllegalArgumentException("ANimated node " + animatedNodeTag + " is " +
+        "already attached to a view");
+    }
+    propsAnimatedNode.mConnectedViewTag = viewTag;
   }
 
-  private static Comparator<AnimatedNode> NODE_COMPARATOR = new Comparator<AnimatedNode>() {
-    @Override
-    public int compare(AnimatedNode lhs, AnimatedNode rhs) {
-      return (lhs.mIncommingNodes - lhs.mVisitedIncommingNodes) -
-              (rhs.mIncommingNodes - rhs.mVisitedIncommingNodes);
+  public void disconnectAnimatedNodeFromView(int animatedNodeTag, int viewTag) {
+    AnimatedNode node = mAnimatedNodes.get(animatedNodeTag);
+    if (node == null) {
+      throw new JSApplicationIllegalArgumentException("Animated node with tag " + animatedNodeTag +
+        " does not exists");
     }
-  };
+    if (!(node instanceof PropsAnimatedNode)) {
+      throw new JSApplicationIllegalArgumentException("Animated node connected to view should be" +
+        "of type " + PropsAnimatedNode.class.getName());
+    }
+    PropsAnimatedNode propsAnimatedNode = (PropsAnimatedNode) node;
+    if (propsAnimatedNode.mConnectedViewTag == viewTag) {
+      propsAnimatedNode.mConnectedViewTag = -1;
+    }
+  }
 
   public void runAnimationStep(long frameTimeNanos) {
     /* prepare */
     for (int i = 0; i < mAnimatedNodes.size(); i++) {
-      mAnimatedNodes.valueAt(i).prepareAnimationStep();
+      AnimatedNode node = mAnimatedNodes.valueAt(i);
+      node.mEnqueued = false;
+      node.mVisitedActiveIncomingNodes = 0;
     }
     /* run animations steps on animated nodes graph starting with active animations */
-    PriorityQueue<AnimatedNode> nodesQueue = new PriorityQueue<>(4, NODE_COMPARATOR);
+    Queue<AnimatedNode> nodesQueue = new ArrayDeque<>();
+    /* fast-enqueue nodes that have been updated */
+    for (int i = 0; i < mUpdatedNodes.size(); i++) {
+      AnimatedNode node = mUpdatedNodes.get(i);
+      if (!node.mEnqueued) {
+        node.mEnqueued = true;
+        nodesQueue.add(node);
+      }
+    }
+    mUpdatedNodes.clear();
+
+    List<AnimationDriver> finishedAnimations = null; /* lazy allocate this */
     for (int i = 0; i < mActiveAnimations.size(); i++) {
       AnimationDriver animation = mActiveAnimations.get(i);
-      if (animation.runAnimationStep(frameTimeNanos)) {
-        nodesQueue.add(animation.mAnimatedValue);
-//        nodesToProcess.add(animation.mAnimatedValue);
+      animation.runAnimationStep(frameTimeNanos);
+      AnimatedNode valueNode = animation.mAnimatedValue;
+      valueNode.mVisitedActiveIncomingNodes++;
+      if (!valueNode.mEnqueued && valueNode.mVisitedActiveIncomingNodes == valueNode.mActiveIncomingNodes) {
+        valueNode.mEnqueued = true;
+        nodesQueue.add(valueNode);
       }
       if (animation.mHasFinished) {
-        // TODO: Do this in O(1)
-        mActiveAnimations.remove(animation);
+        if (finishedAnimations == null) {
+          finishedAnimations = new ArrayList<>();
+        }
+        finishedAnimations.add(animation);
       }
     }
 
     ArrayList<PropsAnimatedNode> updatedPropNodes = new ArrayList<>();
     while (!nodesQueue.isEmpty()) {
       AnimatedNode nextNode = nodesQueue.poll();
-//      AnimatedNode nextNode = nodesToProcess.remove(nodesToProcess.size() - 1);
       nextNode.runAnimationStep(frameTimeNanos);
-//      Log.e("CAT", "Run step " + nextNode + ", " + nextNode.mValue);
       if (nextNode instanceof PropsAnimatedNode) {
         updatedPropNodes.add((PropsAnimatedNode) nextNode);
       }
@@ -566,15 +642,17 @@ import java.util.concurrent.atomic.AtomicLong;
         for (int i = 0; i < nextNode.mChildren.size(); i++) {
           AnimatedNode child = nextNode.mChildren.get(i);
           child.feedDataFromUpdatedParent(nextNode);
-          child.mVisitedIncommingNodes++;
-          nodesQueue.remove(child); /* Update key! */
-          nodesQueue.add(child);
-//          if (child.mVisitedIncommingNodes == child.mIncommingNodes) {
-//            nodesToProcess.add(child);
-//          }
+          if (nextNode.mActiveIncomingNodes > 0) {
+            child.mVisitedActiveIncomingNodes++;
+          }
+          if (!child.mEnqueued && child.mVisitedActiveIncomingNodes == child.mActiveIncomingNodes) {
+            child.mEnqueued = true;
+            nodesQueue.add(child);
+          }
         }
       }
     }
+
     /* collect updates */
     mEnqueuedUpdates.clear();
     for (int i = 0; i < updatedPropNodes.size(); i++) {
@@ -582,8 +660,16 @@ import java.util.concurrent.atomic.AtomicLong;
       UpdateViewData data = propNode.createUpdateViewData();
       if (data.mViewTag > 0) {
         mEnqueuedUpdates.add(propNode.createUpdateViewData());
-      } else {
-        Log.e("CAT", "Invalid data from node " + propNode.mTag);
+      }
+    }
+
+    /* cleanup finished animations */
+    if (finishedAnimations != null && !finishedAnimations.isEmpty()) {
+      for (int i = 0; i < finishedAnimations.size(); i++) {
+        // TODO: do in O(1);
+        AnimationDriver finishedAnimation = finishedAnimations.get(i);
+        mActiveAnimations.remove(finishedAnimation);
+        finishedAnimation.mAnimatedValue.decrementActiveIncomingNodes();
       }
     }
   }
@@ -593,7 +679,7 @@ import java.util.concurrent.atomic.AtomicLong;
     runAnimationStep(mLastFrameTimeNanos.get());
     for (int i = 0; i < mEnqueuedUpdates.size(); i++) {
       UpdateViewData data = mEnqueuedUpdates.get(i);
-      Log.e("CAT", "Update " + data.mViewTag + ", " + data.mProps);
+//      Log.e("CAT", "Update View " + data.mViewTag + ", " + data.mProps);
       uiImplementation.updateView(data.mViewTag, null, data.mProps);
     }
   }
@@ -629,7 +715,6 @@ import java.util.concurrent.atomic.AtomicLong;
       mReactContext.runOnNativeModulesQueueThread(new Runnable() {
         @Override
         public void run() {
-//          runAnimationStep(frameTimeNanos);
           mReactContext.getNativeModule(UIManagerModule.class).dispatchViewUpdatesIfNotInJSBatch();
         }
       });

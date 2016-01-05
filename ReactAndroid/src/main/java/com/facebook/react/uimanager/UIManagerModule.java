@@ -421,6 +421,11 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
   }
 
   @ReactMethod
+  public void dropAnimatedNode(int animatedNodeTag) {
+    mUIImplementation.dropAnimatedNode(animatedNodeTag);
+  }
+
+  @ReactMethod
   public void setAnimatedNodeValue(int animatedNodeTag, double value) {
     mUIImplementation.setAnimatedNodeValue(animatedNodeTag, value);
   }
@@ -436,8 +441,18 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
   }
 
   @ReactMethod
+  public void disconnectAnimatedNodes(int parentNodeTag, int childNodeTag) {
+    mUIImplementation.disconnectAnimatedNodes(parentNodeTag, childNodeTag);
+  }
+
+  @ReactMethod
   public void connectAnimatedNodeToView(int animatedNodeTag, int viewTag) {
     mUIImplementation.connectAnimatedNodeToView(animatedNodeTag, viewTag);
+  }
+
+  @ReactMethod
+  public void disconnectAnimatedNodeFromView(int animatedNodeTag, int viewTag) {
+    mUIImplementation.disconnectAnimatedNodeFromView(animatedNodeTag, viewTag);
   }
 
   /**

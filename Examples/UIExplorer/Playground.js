@@ -37,20 +37,20 @@ var FadeInView = React.createClass({
   },
 
   componentDidMount: function() {
-    // Animated.timing(       // Uses easing functions
-    //   this.state.fadeAnim, // The value to drive
-    //   {
-    //     toValue: 100,        // Target
-    //     duration: 2000,    // Configuration
-    //   },
-    // ).start();             // Don't forget start!
-    // Animated.timing(       // Uses easing functions
-    //   this.state.someAnim, // The value to drive
-    //   {
-    //     toValue: 1,        // Target
-    //     duration: 2000,    // Configuration
-    //   },
-    // ).start();             // Don't forget start!
+    Animated.timing(       // Uses easing functions
+      this.state.fadeAnim, // The value to drive
+      {
+        toValue: 1,        // Target
+        duration: 2000,    // Configuration
+      },
+    ).start();             // Don't forget start!
+    Animated.timing(       // Uses easing functions
+      this.state.someAnim, // The value to drive
+      {
+        toValue: 1,        // Target
+        duration: 2500,    // Configuration
+      },
+    ).start();             // Don't forget start!
     // Animated.decay(       // Uses easing functions
     //   this.state.fadeAnim, // The value to drive
     //   {
@@ -61,12 +61,12 @@ var FadeInView = React.createClass({
     //   this.state.vectorAnim,
     //   {toValue: {x: 100, y: 200}},
     // ).start();
-    Animated.spring(
-      this.state.springAnim,
-      {
-        toValue: 1,
-      }
-    ).start();
+    // Animated.spring(
+    //   this.state.springAnim,
+    //   {
+    //     toValue: 1,
+    //   }
+    // ).start();
   },
 
   render: function() {
@@ -80,17 +80,18 @@ var FadeInView = React.createClass({
           //   {translateX: this.state.vectorAnim.x,
           //    translateY: this.state.vectorAnim.y},
           // ],
-          opacity: this.state.moved,  // Binds
+          // opacity: this.state.moved,  // Binds
+          opacity: this.state.fadeAnim,
           // transform: [   // Array order matters
           //   {translateX: this.state.someAnim.interpolate({
           //     inputRange: [0, 1],
           //     outputRange: [0, 100],
           //   })},
           // ],
-          // width: this.state.someAnim.interpolate({
-          //   inputRange: [0, 1],
-          //   outputRange: [200, 100],
-          // })
+          width: this.state.someAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [200, 100],
+          })
         }}>
         {this.props.children}
       </Animated.View>

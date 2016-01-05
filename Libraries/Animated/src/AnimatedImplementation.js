@@ -47,19 +47,36 @@ var NativeAPI = {
     // console.log("Add child", parentTag, "->", childTag);
     UIManager.connectAnimatedNodes(parentTag, childTag);
   },
+  disconnectAnimatedNodes: function(parentTag, childTag) {
+    if (!USE_NATIVE_ANIMATED) return;
+    // console.log("Remove child", parentTag, "->", childTag);
+    UIManager.disconnectAnimatedNodes(parentTag, childTag);
+  },
   startAnimatingNode: function(nativeTag, config) {
     if (!USE_NATIVE_ANIMATED) return;
-    // console.log("Start animating", nativeTag, config);
+    var { frames, ...restConfig } = config;
+    // console.log("Start animating", nativeTag, restConfig);
     UIManager.startAnimatingNode(nativeTag, config);
   },
   setAnimatedNodeValue: function(tag, value) {
     if (!USE_NATIVE_ANIMATED) return;
+    // console.log("Set animated value", tag, value);
     UIManager.setAnimatedNodeValue(tag, value);
   },
   connectAnimatedNodeToView: function(nodeTag, viewTag) {
     if (!USE_NATIVE_ANIMATED) return;
     // console.log("Set native view tag", viewTag, "for", nodeTag);
     UIManager.connectAnimatedNodeToView(nodeTag, viewTag);
+  },
+  disconnectAnimatedNodeFromView: function(nodeTag, viewTag) {
+    if (!USE_NATIVE_ANIMATED) return;
+    // console.log("Set native view tag", viewTag, "for", nodeTag);
+    UIManager.disconnectAnimatedNodeFromView(nodeTag, viewTag);
+  },
+  dropAnimatedNode: function(tag) {
+    if (!USE_NATIVE_ANIMATED) return;
+    // console.log("Drop animated node", tag);
+    UIManager.dropAnimatedNode(tag);
   }
 };
 
@@ -68,12 +85,17 @@ class Animated {
   __getNativeTag(): number {
     if (this.__nativeTag === undefined) {
       this.__nativeTag = __nativeAnimatedTagCount++;
-      USE_NATIVE_ANIMATED && NativeAPI.createAnimatedNode(this.__nativeTag, this.__nativeConfig());
+      NativeAPI.createAnimatedNode(this.__nativeTag, this.__nativeConfig());
     }
     return this.__nativeTag;
   }
   __attach(): void {}
-  __detach(): void {}
+  __detach(): void {
+    if (this.__nativeTag !== undefined) {
+      NativeAPI.dropAnimatedNode(this.__nativeTag);
+      this.__nativeTag = undefined;
+    }
+  }
   __getValue(): any {}
   __getAnimatedValue(): any { return this.__getValue(); }
   __addChild(child: Animated) {}
@@ -121,9 +143,7 @@ class AnimatedWithChildren extends Animated {
       this.__attach();
     }
     this._children.push(child);
-    var parentTag = this.__getNativeTag();
-    var childTag = child.__getNativeTag();
-    NativeAPI.connectAnimatedNodes(parentTag, childTag);
+    NativeAPI.connectAnimatedNodes(this.__getNativeTag(), child.__getNativeTag());
   }
 
   __removeChild(child: Animated): void {
@@ -132,6 +152,7 @@ class AnimatedWithChildren extends Animated {
       console.warn('Trying to remove a child that doesn\'t exist');
       return;
     }
+    NativeAPI.disconnectAnimatedNodes(this.__getNativeTag(), child.__getNativeTag());
     this._children.splice(index, 1);
     if (this._children.length === 0) {
       this.__detach();
@@ -288,6 +309,7 @@ class TimingAnimation extends Animation {
   }
 
   stop(): void {
+    super.stop();
     this.__active = false;
     clearTimeout(this._timeout);
     window.cancelAnimationFrame(this._animationFrame);
@@ -379,6 +401,7 @@ class DecayAnimation extends Animation {
   }
 
   stop(): void {
+    super.stop();
     this.__active = false;
     window.cancelAnimationFrame(this._animationFrame);
     this.__debouncedOnEnd({finished: false});
@@ -606,6 +629,7 @@ class SpringAnimation extends Animation {
   }
 
   stop(): void {
+    super.stop();
     this.__active = false;
     window.cancelAnimationFrame(this._animationFrame);
     this.__debouncedOnEnd({finished: false});
@@ -640,6 +664,7 @@ class AnimatedValue extends AnimatedWithChildren {
 
   __detach() {
     this.stopAnimation();
+    super.__detach();
   }
 
   __getValue(): number {
@@ -955,6 +980,7 @@ class AnimatedInterpolation extends AnimatedWithChildren {
 
   __detach(): void {
     this._parent.__removeChild(this);
+    super.__detach();
   }
 
   __nativeConfig(): any {
@@ -991,6 +1017,7 @@ class AnimatedAddition extends AnimatedWithChildren {
   __detach(): void {
     this._a.__removeChild(this);
     this._b.__removeChild(this);
+    super.__detach();
   }
 
   __nativeConfig(): any {
@@ -1027,6 +1054,7 @@ class AnimatedMultiplication extends AnimatedWithChildren {
   __detach(): void {
     this._a.__removeChild(this);
     this._b.__removeChild(this);
+    super.__detach();
   }
 
   __nativeConfig(): any {
@@ -1096,6 +1124,7 @@ class AnimatedTransform extends AnimatedWithChildren {
         }
       }
     });
+    super.__detach();
   }
 
   __nativeConfig(): any {
@@ -1177,6 +1206,7 @@ class AnimatedStyle extends AnimatedWithChildren {
         value.__removeChild(this);
       }
     }
+    super.__detach();
   }
 
   __nativeConfig(): any {
@@ -1277,12 +1307,14 @@ class AnimatedProps extends Animated {
   }
 
   __detach(): void {
+    NativeAPI.disconnectAnimatedNodeFromView(this.__getNativeTag(), this._nativeViewTag);
     for (var key in this._props) {
       var value = this._props[key];
       if (value instanceof Animated) {
         value.__removeChild(this);
       }
     }
+    super.__detach();
   }
 
   update(): void {
@@ -1431,6 +1463,7 @@ class AnimatedTracking extends Animated {
 
   __detach(): void {
     this._parent.__removeChild(this);
+    super.__detach();
   }
 
   update(): void {
