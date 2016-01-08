@@ -1129,20 +1129,71 @@ class AnimatedTransform extends AnimatedWithChildren {
 
   __nativeConfig(): any {
     var animated = {};
-    var statics = processTransform([]);
+    var statics = {
+      rotate: 0,
+      rotateX: 0,
+      rotateY: 0,
+      scaleX: 0,
+      scaleY: 0,
+      translateX: 0,
+      translateY: 0,
+    };
+    var order = 0;
+    var usedKeys = {};
     this._transforms.forEach(transform => {
       for (var key in transform) {
         var value = transform[key];
-        if (value instanceof Animated) {
-          delete statics[key];
-          animated[key] = value.__getNativeTag();
-        } else {
-          // All transform components needed to recompose matrix
-          delete animated[key];
-          statics[key] = value;
+        var isValueAnimated = value instanceof Animated;
+        var output = isValueAnimated ? animated : statics;
+        value = isValueAnimated ? value.__getNativeTag() : value;
+        if (key in usedKeys) {
+          throw new Error('Native animated transform doesn\'t support duplicated transform entries');
+        }
+        usedKeys[key] = 1;
+        switch (key) {
+          case 'translateX':
+          case 'translateY':
+            invariant(order == 0, 'Illegal native animated transform, translate should go first');
+            output[key] = value;
+            break;
+          case 'translate':
+            invariant(order == 0, 'Illegal native animated transform, translate should go first');
+            order = 1;
+            output['translateX'] = output['translateY'] = value;
+            break;
+          case 'rotate':
+            invariant(order < 2, 'Illegal native animated transform, rotate should go after translate');
+            order = 2;
+            output[key] = value;
+            break;
+          case 'rotateX':
+            invariant(order < 3, 'Illegal native animated transform, rotateX should go after translate and rotate');
+            order = 3;
+            output[key] = value;
+            break;
+          case 'rotateY':
+            invariant(order < 4, 'Illegal native animated transform, rotateY should go after translate and rotateX');
+            order = 4;
+            output[key] = value;
+            break;
+          case 'scale':
+            invariant(order < 5, 'Illegal native animated transform, scale should go after rotatations');
+            order = 5;
+            output['scaleX'] = output['scaleY'] = value;
+            break;
+          case 'scaleX':
+          case 'scaleY':
+            invariant(order < 6, 'Illegal native animated transform, scaleX/scaleY should go after rotatations');
+            output[key] = value;
+            break;
+          default:
+            throw new Error('Native animated transform doesn\'t support property; ' + key);
         }
       }
     });
+    for (var key in animated) {
+      delete statics[key];
+    }
     return {
       type: 'transform',
       animated: animated,
