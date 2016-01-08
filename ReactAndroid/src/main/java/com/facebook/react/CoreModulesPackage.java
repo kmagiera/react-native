@@ -25,7 +25,6 @@ import com.facebook.react.modules.core.Timing;
 import com.facebook.react.modules.debug.AnimationsDebugModule;
 import com.facebook.react.modules.debug.SourceCodeModule;
 import com.facebook.react.modules.systeminfo.AndroidInfoModule;
-import com.facebook.react.uimanager.AnimationsModule;
 import com.facebook.react.uimanager.AppRegistry;
 import com.facebook.react.uimanager.UIImplementationProvider;
 import com.facebook.react.uimanager.UIManagerModule;
@@ -84,7 +83,6 @@ import com.facebook.systrace.Systrace;
             mReactInstanceManager.getSourceUrl(),
             mReactInstanceManager.getDevSupportManager().getSourceMapUrl()),
         uiManagerModule,
-        new AnimationsModule(catalystApplicationContext),
         new DebugComponentOwnershipModule(catalystApplicationContext));
   }
 
