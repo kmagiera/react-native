@@ -526,8 +526,11 @@ public class UIImplementation {
     mAnimatedNodesManager.setAnimatedNodeValue(animatedNodeTag, value);
   }
 
-  public void startAnimatingNode(int animatedNodeTag, ReadableMap animationConfig) {
-    mAnimatedNodesManager.startAnimatingNode(animatedNodeTag, animationConfig);
+  public void startAnimatingNode(
+      int animatedNodeTag,
+      ReadableMap animationConfig,
+      Callback endCallback) {
+    mAnimatedNodesManager.startAnimatingNode(animatedNodeTag, animationConfig, endCallback);
   }
 
   public void connectAnimatedNodes(int parentNodeTag, int childNodeTag) {

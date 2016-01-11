@@ -52,11 +52,11 @@ var NativeAPI = {
     // console.log("Remove child", parentTag, "->", childTag);
     UIManager.disconnectAnimatedNodes(parentTag, childTag);
   },
-  startAnimatingNode: function(nativeTag, config) {
+  startAnimatingNode: function(nativeTag, config, endCallback) {
     if (!USE_NATIVE_ANIMATED) return;
     var { frames, ...restConfig } = config;
     // console.log("Start animating", nativeTag, restConfig);
-    UIManager.startAnimatingNode(nativeTag, config);
+    UIManager.startAnimatingNode(nativeTag, config, endCallback);
   },
   setAnimatedNodeValue: function(tag, value) {
     if (!USE_NATIVE_ANIMATED) return;
@@ -271,7 +271,7 @@ class TimingAnimation extends Animation {
             type: 'frames',
             frames: mults,
             toValue: this._toValue,
-          });
+          }, this.__debouncedOnEnd.bind(this));
         } else {
           this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
         }
@@ -374,7 +374,7 @@ class DecayAnimation extends Animation {
       NativeAPI.startAnimatingNode(animatedValue.__getNativeTag(), {
         type: 'frames',
         frames: mults,
-      });
+      }, this.__debouncedOnEnd.bind(this));
     } else {
       this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
     }
@@ -522,7 +522,7 @@ class SpringAnimation extends Animation {
         friction: this._friction,
         initialVelocity: this._initialVelocity,
         toValue: this._toValue,
-      });
+      }, this.__debouncedOnEnd.bind(this));
     } else {
       this.onUpdate();
     }

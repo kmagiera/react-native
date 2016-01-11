@@ -1,10 +1,11 @@
 package com.facebook.react.uimanager;
 
 import android.support.annotation.Nullable;
-import android.util.Log;
 import android.util.SparseArray;
 
 import com.facebook.infer.annotation.Assertions;
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableArray;
@@ -12,6 +13,7 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.rebound.BaseSpringSystem;
 import com.facebook.rebound.Spring;
 import com.facebook.rebound.SpringConfig;
@@ -323,6 +325,7 @@ import java.util.concurrent.atomic.AtomicLong;
   private static abstract class AnimationDriver {
     boolean mHasFinished = false;
     ValueAnimatedNode mAnimatedValue;
+    Callback mEndCallback;
     public abstract boolean runAnimationStep(long frameTimeNanos);
   }
 
@@ -508,7 +511,10 @@ import java.util.concurrent.atomic.AtomicLong;
     mUpdatedNodes.add(node);
   }
 
-  public void startAnimatingNode(int animatedNodeTag, ReadableMap animationConfig) {
+  public void startAnimatingNode(
+      int animatedNodeTag,
+      ReadableMap animationConfig,
+      Callback endCallback) {
     AnimatedNode node = mAnimatedNodes.get(animatedNodeTag);
     if (node == null) {
       throw new JSApplicationIllegalArgumentException("Animated node with tag " + animatedNodeTag +
@@ -527,6 +533,7 @@ import java.util.concurrent.atomic.AtomicLong;
     } else {
       throw new JSApplicationIllegalArgumentException("Unsupported animation type: " + type);
     }
+    animation.mEndCallback = endCallback;
     animation.mAnimatedValue = (ValueAnimatedNode) node;
     node.incrementActiveIncomingNodes();
     mActiveAnimations.add(animation);
@@ -669,6 +676,9 @@ import java.util.concurrent.atomic.AtomicLong;
         // TODO: do in O(1);
         AnimationDriver finishedAnimation = finishedAnimations.get(i);
         mActiveAnimations.remove(finishedAnimation);
+        WritableMap endCallbackResponse = Arguments.createMap();
+        endCallbackResponse.putBoolean("finished", true);
+        finishedAnimation.mEndCallback.invoke(endCallbackResponse);
         finishedAnimation.mAnimatedValue.decrementActiveIncomingNodes();
       }
     }
