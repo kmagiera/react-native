@@ -1133,8 +1133,8 @@ class AnimatedTransform extends AnimatedWithChildren {
       rotate: 0,
       rotateX: 0,
       rotateY: 0,
-      scaleX: 0,
-      scaleY: 0,
+      scaleX: 1,
+      scaleY: 1,
       translateX: 0,
       translateY: 0,
     };
