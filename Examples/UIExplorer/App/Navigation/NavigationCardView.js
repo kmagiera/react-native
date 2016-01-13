@@ -65,7 +65,7 @@ class NavigationCardView extends React.Component {
     this.props.width.removeListener(this._widthListener);
   }
   render() {
-    const cardPosition = Animated.add(this.props.position, new Animated.Value(-this.props.index));
+    const cardPosition = Animated.add(this.props.position, new Animated.Value(-this.props.index, true));
     const gestureValue = Animated.multiply(cardPosition, this.props.width);
 
     return (

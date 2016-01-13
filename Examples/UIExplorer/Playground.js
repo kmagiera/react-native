@@ -20,19 +20,19 @@ var UIExplorerButton = require('./UIExplorerButton');
 
 var FadeInView = React.createClass({
   getInitialState: function() {
-    var anim = new Animated.Value(0);
-    var index = 0;
-    var moved = anim.interpolate({
-      inputRange: [index - 1, index, index + 1],
-      outputRange: [0, 1, 0]
-    });// new Animated.multiply(anim, new Animated.Value(0.1));
+    // var anim = new Animated.Value(0);
+    // var index = 0;
+    // var moved = anim.interpolate({
+    //   inputRange: [index - 1, index, index + 1],
+    //   outputRange: [0, 1, 0]
+    // });// new Animated.multiply(anim, new Animated.Value(0.1));
     return {
       // fadeAnim: new Animated.Value(0), // opacity 0
-      fadeAnim: new Animated.Value(0), // opacity 0
-      someAnim: new Animated.Value(0),
-      vectorAnim: new Animated.ValueXY(),
-      springAnim: anim,//new Animated.Value(0),
-      moved: moved,
+      fadeAnim: new Animated.NativeValue(0), // opacity 0
+      someAnim: new Animated.NativeValue(0),
+      // vectorAnim: new Animated.ValueXY(),
+      // springAnim: anim,//new Animated.Value(0),
+      // moved: moved,
     }
   },
 
@@ -82,16 +82,16 @@ var FadeInView = React.createClass({
           // ],
           // opacity: this.state.moved,  // Binds
           opacity: this.state.fadeAnim,
-          // transform: [   // Array order matters
-          //   {translateX: this.state.someAnim.interpolate({
-          //     inputRange: [0, 1],
-          //     outputRange: [0, 100],
-          //   })},
-          // ],
-          width: this.state.someAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [200, 100],
-          })
+          transform: [   // Array order matters
+            {translateX: this.state.someAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 100],
+            })},
+          ],
+          // width: Animated.multiply(this.state.someAnim, new Animated.Value(0.5, true)).interpolate({
+          //   inputRange: [0, 1],
+          //   outputRange: [200, 100],
+          // })
         }}>
         {this.props.children}
       </Animated.View>

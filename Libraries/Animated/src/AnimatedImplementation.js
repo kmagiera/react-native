@@ -34,64 +34,46 @@ type EndCallback = (result: EndResult) => void;
 
 var __nativeAnimatedTagCount = 1;
 
-var USE_NATIVE_ANIMATED = true;
-
 var NativeAPI = {
   createAnimatedNode: function(tag, config) {
-    if (!USE_NATIVE_ANIMATED) return;
     // console.log("Create animated", tag, config);
     UIManager.createAnimatedNode(tag, config);
   },
   connectAnimatedNodes: function(parentTag, childTag) {
-    if (!USE_NATIVE_ANIMATED) return;
     // console.log("Add child", parentTag, "->", childTag);
     UIManager.connectAnimatedNodes(parentTag, childTag);
   },
   disconnectAnimatedNodes: function(parentTag, childTag) {
-    if (!USE_NATIVE_ANIMATED) return;
     // console.log("Remove child", parentTag, "->", childTag);
     UIManager.disconnectAnimatedNodes(parentTag, childTag);
   },
   startAnimatingNode: function(nativeTag, config, endCallback) {
-    if (!USE_NATIVE_ANIMATED) return;
     var { frames, ...restConfig } = config;
-    // console.log("Start animating", nativeTag, restConfig);
+    console.log("Start animating", nativeTag, restConfig);
     UIManager.startAnimatingNode(nativeTag, config, endCallback);
   },
   setAnimatedNodeValue: function(tag, value) {
-    if (!USE_NATIVE_ANIMATED) return;
     // console.log("Set animated value", tag, value);
     UIManager.setAnimatedNodeValue(tag, value);
   },
   connectAnimatedNodeToView: function(nodeTag, viewTag) {
-    if (!USE_NATIVE_ANIMATED) return;
     // console.log("Set native view tag", viewTag, "for", nodeTag);
     UIManager.connectAnimatedNodeToView(nodeTag, viewTag);
   },
   disconnectAnimatedNodeFromView: function(nodeTag, viewTag) {
-    if (!USE_NATIVE_ANIMATED) return;
     // console.log("Set native view tag", viewTag, "for", nodeTag);
     UIManager.disconnectAnimatedNodeFromView(nodeTag, viewTag);
   },
   dropAnimatedNode: function(tag) {
-    if (!USE_NATIVE_ANIMATED) return;
     // console.log("Drop animated node", tag);
     UIManager.dropAnimatedNode(tag);
   }
 };
 
 class Animated {
-  __nativeTag: number;
-  __getNativeTag(): number {
-    if (this.__nativeTag === undefined) {
-      this.__nativeTag = __nativeAnimatedTagCount++;
-      NativeAPI.createAnimatedNode(this.__nativeTag, this.__nativeConfig());
-    }
-    return this.__nativeTag;
-  }
   __attach(): void {}
   __detach(): void {
-    if (this.__nativeTag !== undefined) {
+    if (this.__isNative && this.__nativeTag !== undefined) {
       NativeAPI.dropAnimatedNode(this.__nativeTag);
       this.__nativeTag = undefined;
     }
@@ -101,7 +83,25 @@ class Animated {
   __addChild(child: Animated) {}
   __removeChild(child: Animated) {}
   __getChildren(): Array<Animated> { return []; }
-  __nativeConfig(): any {}
+
+  /* Methods and props used be native Animated impl */
+  __isNative: bool;
+  __nativeTag: number;
+  __getNativeTag(): number {
+    // console.log("ATTEMPT", this);
+    invariant(this.__isNative, 'Attempt to get native tag from node not marked as "native"');
+    if (this.__nativeTag === undefined) {
+      this.__nativeTag = __nativeAnimatedTagCount++;
+      NativeAPI.createAnimatedNode(this.__nativeTag, this.__getNativeConfig());
+    }
+    return this.__nativeTag;
+  }
+  __makeNative() {
+    if (!this.__isNative) {
+      throw new Error('This node cannot be made a "native" animated node');
+    }
+  }
+  __getNativeConfig(): any { throw new Error('This node type cannot be used as native animated node'); }
 }
 
 type AnimationConfig = {
@@ -138,12 +138,25 @@ class AnimatedWithChildren extends Animated {
     this._children = [];
   }
 
+  __makeNative() {
+    if (!this.__isNative) {
+      this.__isNative = true;
+      for (var child in this._children) {
+        child.__makeNative();
+      }
+    }
+  }
+
   __addChild(child: Animated): void {
     if (this._children.length === 0) {
       this.__attach();
     }
     this._children.push(child);
-    NativeAPI.connectAnimatedNodes(this.__getNativeTag(), child.__getNativeTag());
+    if (this.__isNative) {
+      // Only accept "native" animated nodes as children
+      child.__makeNative();
+      NativeAPI.connectAnimatedNodes(this.__getNativeTag(), child.__getNativeTag());
+    }
   }
 
   __removeChild(child: Animated): void {
@@ -152,7 +165,9 @@ class AnimatedWithChildren extends Animated {
       console.warn('Trying to remove a child that doesn\'t exist');
       return;
     }
-    NativeAPI.disconnectAnimatedNodes(this.__getNativeTag(), child.__getNativeTag());
+    if (this.__isNative && child.__isNative) {
+      NativeAPI.disconnectAnimatedNodes(this.__getNativeTag(), child.__getNativeTag());
+    }
     this._children.splice(index, 1);
     if (this._children.length === 0) {
       this.__detach();
@@ -161,12 +176,6 @@ class AnimatedWithChildren extends Animated {
 
   __getChildren(): Array<Animated> {
     return this._children;
-  }
-
-  __nativeConfig(): any {
-    return {
-      type: 'node',
-    }
   }
 }
 
@@ -243,6 +252,19 @@ class TimingAnimation extends Animation {
     this.__isInteraction = config.isInteraction !== undefined ? config.isInteraction : true;
   }
 
+  _getNativeAnimationConfig(): any {
+    var frameDuration = 1000.0/60.0;
+    var mults = [];
+    for (var dt = 0.; dt <= this._duration; dt += frameDuration) {
+      mults.push(this._easing(dt / this._duration));
+    }
+    return {
+      type: 'frames',
+      frames: mults,
+      toValue: this._toValue,
+    }
+  }
+
   start(
     fromValue: number,
     onUpdate: (value: number) => void,
@@ -261,17 +283,11 @@ class TimingAnimation extends Animation {
         this.__debouncedOnEnd({finished: true});
       } else {
         this._startTime = Date.now();
-        if (USE_NATIVE_ANIMATED) {
-          var frameDuration = 1000.0/60.0;
-          var mults = [];
-          for (var dt = 0.; dt <= this._duration; dt += frameDuration) {
-            mults.push(this._easing(dt / this._duration));
-          }
-          NativeAPI.startAnimatingNode(animatedValue.__getNativeTag(), {
-            type: 'frames',
-            frames: mults,
-            toValue: this._toValue,
-          }, this.__debouncedOnEnd.bind(this));
+        if (animatedValue.__isNative) {
+          NativeAPI.startAnimatingNode(
+            animatedValue.__getNativeTag(),
+            this._getNativeAnimationConfig(),
+            this.__debouncedOnEnd.bind(this));
         } else {
           this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
         }
@@ -345,6 +361,25 @@ class DecayAnimation extends Animation {
     this.__isInteraction = config.isInteraction !== undefined ? config.isInteraction : true;
   }
 
+  _getNativeAnimationConfig(): any {
+    var frameDuration = 1000.0/60.0;
+    var dt = frameDuration;
+    var lastValue = 0;
+    var value = 0;
+    var mults = [];
+    do {
+      lastValue = value;
+      mults.push(value);
+      value = (this._velocity / (1 - this._deceleration)) *
+        (1 - Math.exp(-(1 - this._deceleration) * dt));
+      dt += frameDuration;
+    } while (Math.abs(lastValue - value) >= 0.1);
+    return {
+      type: 'frames',
+      frames: mults,
+    }
+  }
+
   start(
     fromValue: number,
     onUpdate: (value: number) => void,
@@ -358,23 +393,11 @@ class DecayAnimation extends Animation {
     this._onUpdate = onUpdate;
     this.__onEnd = onEnd;
     this._startTime = Date.now();
-    if (USE_NATIVE_ANIMATED) {
-      var frameDuration = 1000.0/60.0;
-      var dt = frameDuration;
-      var lastValue = 0;
-      var value = 0;
-      var mults = [];
-      do {
-        lastValue = value;
-        mults.push(value);
-        value = (this._velocity / (1 - this._deceleration)) *
-          (1 - Math.exp(-(1 - this._deceleration) * dt));
-        dt += frameDuration;
-      } while (Math.abs(lastValue - value) >= 0.1);
-      NativeAPI.startAnimatingNode(animatedValue.__getNativeTag(), {
-        type: 'frames',
-        frames: mults,
-      }, this.__debouncedOnEnd.bind(this));
+    if (animatedValue.__isNative) {
+      NativeAPI.startAnimatingNode(
+        animatedValue.__getNativeTag(),
+        this._getNativeAnimationConfig(),
+        this.__debouncedOnEnd.bind(this));
     } else {
       this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
     }
@@ -487,6 +510,19 @@ class SpringAnimation extends Animation {
     this._friction = springConfig.friction;
   }
 
+  _getNativeAnimationConfig() {
+    return {
+      type: 'spring',
+      overshootClamping: this._overshootClamping,
+      restDisplacementThreshold: this._restDisplacementThreshold,
+      restSpeedThreshold: this._restSpeedThreshold,
+      tension: this._tension,
+      friction: this._friction,
+      initialVelocity: this._initialVelocity,
+      toValue: this._toValue,
+    }
+  }
+
   start(
     fromValue: number,
     onUpdate: (value: number) => void,
@@ -512,17 +548,11 @@ class SpringAnimation extends Animation {
         this._initialVelocity !== null) {
       this._lastVelocity = this._initialVelocity;
     }
-    if (USE_NATIVE_ANIMATED) {
-      NativeAPI.startAnimatingNode(animatedValue.__getNativeTag(), {
-        type: 'spring',
-        overshootClamping: this._overshootClamping,
-        restDisplacementThreshold: this._restDisplacementThreshold,
-        restSpeedThreshold: this._restSpeedThreshold,
-        tension: this._tension,
-        friction: this._friction,
-        initialVelocity: this._initialVelocity,
-        toValue: this._toValue,
-      }, this.__debouncedOnEnd.bind(this));
+    if (animatedValue.__isNative) {
+      NativeAPI.startAnimatingNode(
+        animatedValue.__getNativeTag(),
+        this._getNativeAnimationConfig(),
+        this.__debouncedOnEnd.bind(this));
     } else {
       this.onUpdate();
     }
@@ -654,8 +684,9 @@ class AnimatedValue extends AnimatedWithChildren {
   _tracking: ?Animated;
   _listeners: {[key: string]: ValueListenerCallback};
 
-  constructor(value: number) {
+  constructor(value: number, isNative = false) {
     super();
+    this.__isNative = isNative;
     this._startingValue = this._value = value;
     this._offset = 0;
     this._animation = null;
@@ -681,7 +712,9 @@ class AnimatedValue extends AnimatedWithChildren {
       this._animation = null;
     }
     this._updateValue(value);
-    NativeAPI.setAnimatedNodeValue(this.__getNativeTag(), value);
+    if (this.__isNative) {
+      NativeAPI.setAnimatedNodeValue(this.__getNativeTag(), value);
+    }
   }
 
   /**
@@ -794,11 +827,18 @@ class AnimatedValue extends AnimatedWithChildren {
     }
   }
 
-  __nativeConfig(): any {
+  __getNativeConfig(): any {
+    invariant(this.__isNative, 'X Attempt to get native config for animated node not marked as "native"');
     return {
       type: 'value',
       value: this._startingValue,
     }
+  }
+}
+
+class NativeAnimatedValue extends AnimatedValue {
+  constructor(value: number) {
+    super(value, true);
   }
 }
 
@@ -941,10 +981,6 @@ class AnimatedValueXY extends AnimatedWithChildren {
       {translateY: this.y}
     ];
   }
-
-  __nativeConfig(): any {
-    return "animated value XY";
-  }
 }
 
 class AnimatedInterpolation extends AnimatedWithChildren {
@@ -956,6 +992,7 @@ class AnimatedInterpolation extends AnimatedWithChildren {
       interpolation: (input: number) => number | string,
       config: InterpolationConfigType) {
     super();
+    this.__isNative = parent.__isNative;
     this._parent = parent;
     this._interpolation = interpolation;
     this._config = config;
@@ -983,7 +1020,8 @@ class AnimatedInterpolation extends AnimatedWithChildren {
     super.__detach();
   }
 
-  __nativeConfig(): any {
+  __getNativeConfig(): any {
+    invariant(this.__isNative, '2 Attempt to get native config for animated node not marked as "native"');
     return {
       ...this._config,
       type: 'interpolation',
@@ -999,6 +1037,12 @@ class AnimatedAddition extends AnimatedWithChildren {
     super();
     this._a = a;
     this._b = b;
+  }
+
+  __makeNative() {
+    super.__makeNative();
+    this._a.__makeNative();
+    this._b.__makeNative();
   }
 
   __getValue(): number {
@@ -1020,7 +1064,8 @@ class AnimatedAddition extends AnimatedWithChildren {
     super.__detach();
   }
 
-  __nativeConfig(): any {
+  __getNativeConfig(): any {
+    invariant(this.__isNative, '3 Attempt to get native config for animated node not marked as "native"');
     return {
       type: 'addition',
       input: [this._a.__getNativeTag(), this._b.__getNativeTag()],
@@ -1036,6 +1081,12 @@ class AnimatedMultiplication extends AnimatedWithChildren {
     super();
     this._a = a;
     this._b = b;
+  }
+
+  __makeNative() {
+    super.__makeNative();
+    this._a.__makeNative();
+    this._b.__makeNative();
   }
 
   __getValue(): number {
@@ -1057,7 +1108,8 @@ class AnimatedMultiplication extends AnimatedWithChildren {
     super.__detach();
   }
 
-  __nativeConfig(): any {
+  __getNativeConfig(): any {
+    invariant(this.__isNative, '4 Attempt to get native config for animated node not marked as "native"');
     return {
       type: 'multiplication',
       input: [this._a.__getNativeTag(), this._b.__getNativeTag()],
@@ -1071,6 +1123,18 @@ class AnimatedTransform extends AnimatedWithChildren {
   constructor(transforms: Array<Object>) {
     super();
     this._transforms = transforms;
+  }
+
+  __makeNative() {
+    super.__makeNative();
+    this._transforms.forEach(transform => {
+      for (var key in transform) {
+        var value = transform[key];
+        if (value instanceof Animated) {
+          value.__makeNative();
+        }
+      }
+    });
   }
 
   __getValue(): Array<Object> {
@@ -1127,7 +1191,8 @@ class AnimatedTransform extends AnimatedWithChildren {
     super.__detach();
   }
 
-  __nativeConfig(): any {
+  __getNativeConfig(): any {
+    invariant(this.__isNative, '5 Attempt to get native config for animated node not marked as "native"');
     var animated = {};
     var statics = {
       rotate: 0,
@@ -1217,6 +1282,16 @@ class AnimatedStyle extends AnimatedWithChildren {
     this._style = style;
   }
 
+  __makeNative() {
+    super.__makeNative();
+    for (var key in this._style) {
+      var value = this._style[key];
+      if (value instanceof Animated) {
+        value.__makeNative();
+      }
+    }
+  }
+
   __getValue(): Object {
     var style = {};
     for (var key in this._style) {
@@ -1260,7 +1335,8 @@ class AnimatedStyle extends AnimatedWithChildren {
     super.__detach();
   }
 
-  __nativeConfig(): any {
+  __getNativeConfig(): any {
+    invariant(this.__isNative, '6 Attempt to get native config for animated node not marked as "native"');
     var styleConfig = {};
     for (let styleKey in this._style) {
       if (this._style[styleKey] instanceof Animated) {
@@ -1309,8 +1385,20 @@ class AnimatedProps extends Animated {
     this.__attach();
   }
 
+  __makeNative() {
+    if (!this.__isNative) {
+      this.__isNative = true;
+      for (var key in this._props) {
+        var value = this._props[key];
+        if (value instanceof Animated) {
+          value.__makeNative();
+        }
+      }
+    }
+  }
+
   setNativeView(nativeView: number): void {
-    if (!USE_NATIVE_ANIMATED) return;
+    if (!this.__isNative) return;
     invariant(this._nativeViewTag === undefined, 'Native view tag already set.');
     this._nativeViewTag = findNodeHandle(nativeView);
     NativeAPI.connectAnimatedNodeToView(this.__getNativeTag(), this._nativeViewTag);
@@ -1358,7 +1446,9 @@ class AnimatedProps extends Animated {
   }
 
   __detach(): void {
-    NativeAPI.disconnectAnimatedNodeFromView(this.__getNativeTag(), this._nativeViewTag);
+    if (this.__isNative) {
+      NativeAPI.disconnectAnimatedNodeFromView(this.__getNativeTag(), this._nativeViewTag);
+    }
     for (var key in this._props) {
       var value = this._props[key];
       if (value instanceof Animated) {
@@ -1372,7 +1462,8 @@ class AnimatedProps extends Animated {
     this._callback();
   }
 
-  __nativeConfig(): any {
+  __getNativeConfig(): any {
+    invariant(this.__isNative, '7 Attempt to get native config for animated node not marked as "native"');
     var propsConfig = {};
     for (let propKey in this._props) {
       var value = this._props[propKey];
@@ -1422,7 +1513,9 @@ function createAnimatedComponent(Component: any): any {
         if (this.refs[refName].setNativeProps) {
           var value = this._propsAnimated.__getAnimatedValue();
           // console.log("Set native props", this._propsAnimated.__getNativeTag(), findNodeHandle(this.refs[refName]), value);
-          !USE_NATIVE_ANIMATED && this.refs[refName].setNativeProps(value);
+          if (!value.__isNative) {
+            this.refs[refName].setNativeProps(value);
+          }
         } else {
           this.forceUpdate();
         }
@@ -1883,6 +1976,12 @@ module.exports = {
    * `new Animated.Value(0);`
    */
   Value: AnimatedValue,
+  /**
+   * Convinience wrapper for creating Animated.Value that will be used to drive
+   * animation on the native side (alternatively you may also pass `true` as a
+   * second argument to `Animated.Value`);
+   */
+  NativeValue:  NativeAnimatedValue,
   /**
    * 2D value class for driving 2D animations, such as pan gestures.
    */

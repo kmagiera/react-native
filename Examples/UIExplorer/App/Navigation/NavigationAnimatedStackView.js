@@ -79,8 +79,8 @@ class NavigationAnimatedStackView extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      position: new Animated.Value(this.props.stack.index),
-      width: new Animated.Value(0),
+      position: new Animated.Value(this.props.stack.index, true),
+      width: new Animated.Value(0, true),
       records: new Map(),
     };
   }
