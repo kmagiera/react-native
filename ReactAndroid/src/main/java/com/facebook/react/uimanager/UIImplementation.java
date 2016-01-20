@@ -24,6 +24,7 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.uimanager.debug.NotThreadSafeViewHierarchyUpdateDebugListener;
+import com.facebook.react.uimanager.events.Event;
 import com.facebook.react.uimanager.events.EventDispatcher;
 import com.facebook.systrace.Systrace;
 import com.facebook.systrace.SystraceMessage;
@@ -547,6 +548,21 @@ public class UIImplementation {
 
   public void disconnectAnimatedNodeFromView(int animatedNodeTag, int viewTag) {
     mAnimatedNodesManager.disconnectAnimatedNodeFromView(animatedNodeTag, viewTag);
+  }
+
+  public void connectEventToAnimatedNode(String eventName,
+                                         int eventTargetViewTag,
+                                         int animatedNodeTag,
+                                         ReadableArray propsPath) {
+    mAnimatedNodesManager.connectEventToAnimatedNode(
+      eventName,
+      eventTargetViewTag,
+      animatedNodeTag,
+      propsPath);
+  }
+
+  public void dispatchEvent(Event event) {
+    mAnimatedNodesManager.dispatchEvent(event);
   }
 
   public void setJSResponder(int reactTag, boolean blockNativeResponder) {

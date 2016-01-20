@@ -33,6 +33,7 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.uimanager.debug.NotThreadSafeViewHierarchyUpdateDebugListener;
+import com.facebook.react.uimanager.events.Event;
 import com.facebook.react.uimanager.events.EventDispatcher;
 import com.facebook.systrace.Systrace;
 import com.facebook.systrace.SystraceMessage;
@@ -456,6 +457,22 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
   @ReactMethod
   public void disconnectAnimatedNodeFromView(int animatedNodeTag, int viewTag) {
     mUIImplementation.disconnectAnimatedNodeFromView(animatedNodeTag, viewTag);
+  }
+
+  @ReactMethod
+  public void connectEventToAnimatedNode(String eventName,
+                                         int eventTargetViewTag,
+                                         int animatedNodeTag,
+                                         ReadableArray propsPath) {
+    mUIImplementation.connectEventToAnimatedNode(
+      eventName,
+      eventTargetViewTag,
+      animatedNodeTag,
+      propsPath);
+  }
+
+  public void dispatchEvent(Event event) {
+    mUIImplementation.dispatchEvent(event);
   }
 
   /**

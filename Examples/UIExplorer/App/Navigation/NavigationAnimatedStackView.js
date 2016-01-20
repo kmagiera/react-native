@@ -78,19 +78,38 @@ function compareRecords(
 class NavigationAnimatedStackView extends React.Component {
   constructor(props) {
     super(props);
+    var dragStart = new Animated.Value(0);
+    var indexValue = new Animated.Value(this.props.stack.index);
+    var dragX = new Animated.Value(0);
+    var dragDx = Animated.add(dragX, dragStart);
+    var widthInverse = new Animated.Value(1);
+    var position = Animated.add(indexValue,
+      Animated.multiply(
+        Animated.multiply(new Animated.Value(-1), dragDx),
+        widthInverse));
+    var width = new Animated.Value(0);
     this.state = {
-      position: new Animated.Value(this.props.stack.index, true),
-      width: new Animated.Value(0, true),
-      records: new Map(),
-    };
+      dragStart,
+      indexValue,
+      dragX,
+      dragDx,
+      widthInverse,
+      position,
+      width,
+      records: new Map()
+    }
   }
   render() {
     return (
       <View
         onLayout={(e) => {
           const {width} = e.nativeEvent.layout;
-          this._lastWidth = width;
-          this.state.width.setValue(width);
+          if (this._lastWidth !== width) {
+            this._lastWidth = width;
+            console.log("Before set value", width);
+            this.state.width.setValue(width);
+            this.state.widthInverse.setValue(1 / width);
+          }
         }}
         style={this.props.style}>
         {this.props.stack.mapToArray(this._renderRoute, this)}
@@ -101,27 +120,35 @@ class NavigationAnimatedStackView extends React.Component {
   componentDidUpdate(lastProps) {
     if (lastProps.stack.index !== this.props.stack.index) {
       Animated.spring(
-        this.state.position,
+        this.state.indexValue,
         {toValue: this.props.stack.index}
       ).start();
+      Animated.spring(this.state.dragX, { toValue: 0 }).start();
+      Animated.spring(this.state.dragStart, { toValue: 0 }).start();
     }
   }
   _renderRoute(route, index, key) {
-    const {position, width} = this.state;
+    const {position, width, dragX, dragStart, indexValue} = this.state;
     return this.props.renderRoute({
       route,
       index,
       key,
       position,
+      dragX,
+      dragStart,
       width,
+      indexValue,
       lastWidth: this._lastWidth,
     });
   }
   _renderOverlay() {
-    const {position, width} = this.state;
+    const {position, width, dragX, dragStart, indexValue} = this.state;
     return this.props.renderOverlay({
       position,
       width,
+      dragX,
+      dragStart,
+      indexValue,
       lastWidth: this._lastWidth,
     });
   }

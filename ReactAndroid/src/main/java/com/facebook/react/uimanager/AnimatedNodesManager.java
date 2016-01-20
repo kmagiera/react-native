@@ -14,6 +14,8 @@ import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.uimanager.events.Event;
+import com.facebook.react.uimanager.events.RCTEventEmitter;
 import com.facebook.rebound.BaseSpringSystem;
 import com.facebook.rebound.Spring;
 import com.facebook.rebound.SpringConfig;
@@ -29,13 +31,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
-/*package*/ class AnimatedNodesManager {
+public class AnimatedNodesManager {
 
   private static final int DEFAULT_ANIMATED_NODE_CHILD_COUNT = 1;
 
   private static class AnimatedNode {
     private @Nullable List<AnimatedNode> mChildren; /* lazy-initialized when child is added */
-    private int mVisitedActiveIncomingNodes = 0;
     private int mActiveIncomingNodes = 0;
     private boolean mEnqueued = false;
     public int mTag = -1;
@@ -47,39 +48,13 @@ import java.util.concurrent.atomic.AtomicLong;
         mChildren = new ArrayList<>(DEFAULT_ANIMATED_NODE_CHILD_COUNT);
       }
       Assertions.assertNotNull(mChildren).add(child);
-      if (mActiveIncomingNodes > 0) {
-        // node is active!, update children active count
-        child.incrementActiveIncomingNodes();
-      }
     }
 
     public void removeChild(AnimatedNode child) {
       if (mChildren == null) {
         return;
       }
-      if (mChildren.remove(child)) {
-        if (mActiveIncomingNodes > 0) {
-          child.decrementActiveIncomingNodes();
-        }
-      }
-    }
-
-    public void incrementActiveIncomingNodes() {
-      mActiveIncomingNodes++;
-      if (mActiveIncomingNodes == 1 && mChildren != null) {
-        for (int i = 0; i < mChildren.size(); i++) {
-          mChildren.get(i).incrementActiveIncomingNodes();
-        }
-      }
-    }
-
-    public void decrementActiveIncomingNodes() {
-      mActiveIncomingNodes--;
-      if (mActiveIncomingNodes == 0 && mChildren != null) {
-        for (int i = 0; i < mChildren.size(); i++) {
-          mChildren.get(i).decrementActiveIncomingNodes();
-        }
-      }
+      mChildren.remove(child);
     }
 
     public void feedDataFromUpdatedParent(AnimatedNode parent) {
@@ -460,6 +435,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
   private final SparseArray<AnimatedNode> mAnimatedNodes = new SparseArray<>();
   private final ArrayList<AnimationDriver> mActiveAnimations = new ArrayList<>();
+  private final ArrayList<EventTracker> mActiveEventTrackers = new ArrayList<>();
   private final ArrayList<UpdateViewData> mEnqueuedUpdates = new ArrayList<>();
   private final ArrayList<AnimatedNode> mUpdatedNodes = new ArrayList<>();
   private final AnimatedFrameCallback mAnimatedFrameCallback;
@@ -535,7 +511,6 @@ import java.util.concurrent.atomic.AtomicLong;
     }
     animation.mEndCallback = endCallback;
     animation.mAnimatedValue = (ValueAnimatedNode) node;
-    node.incrementActiveIncomingNodes();
     mActiveAnimations.add(animation);
   }
 
@@ -601,16 +576,94 @@ import java.util.concurrent.atomic.AtomicLong;
     }
   }
 
+  private static class EventTracker {
+
+    private final String mEventName;
+    private final int mEventTargetViewTag;
+    private final List<String> mPropsPath;
+    private final AnimatedNodesManager mNodesManager;
+    private final int mTargetAnimatedNode;
+
+    EventTracker(
+        AnimatedNodesManager nodesManager,
+        String eventName,
+        int eventTargetViewTag,
+        int animatedNodeTag,
+        List<String> propsPath) {
+      mNodesManager = nodesManager;
+      mEventName = eventName;
+      mEventTargetViewTag = eventTargetViewTag;
+      mPropsPath = propsPath;
+      mTargetAnimatedNode = animatedNodeTag;
+    }
+
+    private void doTheMapping(ReadableMap from) {
+      ReadableMap current = from;
+      for (int i = 0; i < mPropsPath.size() - 1; i++) {
+        String propName = mPropsPath.get(i);
+        current = current.getMap(propName);
+      }
+      double value = current.getDouble(mPropsPath.get(mPropsPath.size() - 1));
+      mNodesManager.setAnimatedNodeValue(mTargetAnimatedNode, value);
+    }
+
+    public void dispatchEvent(Event event) {
+      event.dispatch(new RCTEventEmitter() {
+        @Override
+        public void receiveEvent(int targetTag, String eventName, WritableMap event) {
+          if (event != null) {
+            doTheMapping(event);
+          }
+        }
+
+        @Override
+        public void receiveTouches(
+            String eventName,
+            WritableArray touches,
+            WritableArray changedIndices) {
+          if (touches != null) {
+            doTheMapping(touches.getMap(0));
+          }
+        }
+      });
+
+    }
+  }
+
+  public void connectEventToAnimatedNode(
+    String eventName,
+    int eventTargetViewTag,
+    int animatedNodeTag,
+    ReadableArray propsPath) {
+    // FROM MAIN THREAD!!!!!
+    List<String> props = new ArrayList<>(propsPath.size());
+    for (int i = 0, size = propsPath.size(); i < size; i++) {
+      props.add(propsPath.getString(i));
+    }
+    mActiveEventTrackers.add(
+      new EventTracker(this, eventName, eventTargetViewTag, animatedNodeTag, props));
+  }
+
+  public void dispatchEvent(Event event) {
+    // FROM UI THREAD!!!!
+    for (int i = 0; i < mActiveEventTrackers.size(); i++) {
+      EventTracker tracker = mActiveEventTrackers.get(i);
+      if (tracker.mEventTargetViewTag == event.getViewTag()
+        && tracker.mEventName.equals(event.getEventName())) {
+        tracker.dispatchEvent(event);
+      }
+    }
+  }
+
   public void runAnimationStep(long frameTimeNanos) {
     /* prepare */
     for (int i = 0; i < mAnimatedNodes.size(); i++) {
       AnimatedNode node = mAnimatedNodes.valueAt(i);
       node.mEnqueued = false;
-      node.mVisitedActiveIncomingNodes = 0;
+      node.mActiveIncomingNodes = 0;
     }
-    /* run animations steps on animated nodes graph starting with active animations */
+
     Queue<AnimatedNode> nodesQueue = new ArrayDeque<>();
-    /* fast-enqueue nodes that have been updated */
     for (int i = 0; i < mUpdatedNodes.size(); i++) {
       AnimatedNode node = mUpdatedNodes.get(i);
       if (!node.mEnqueued) {
@@ -618,15 +671,13 @@ import java.util.concurrent.atomic.AtomicLong;
         nodesQueue.add(node);
       }
     }
-    mUpdatedNodes.clear();
 
     List<AnimationDriver> finishedAnimations = null; /* lazy allocate this */
     for (int i = 0; i < mActiveAnimations.size(); i++) {
       AnimationDriver animation = mActiveAnimations.get(i);
       animation.runAnimationStep(frameTimeNanos);
       AnimatedNode valueNode = animation.mAnimatedValue;
-      valueNode.mVisitedActiveIncomingNodes++;
-      if (!valueNode.mEnqueued && valueNode.mVisitedActiveIncomingNodes == valueNode.mActiveIncomingNodes) {
+      if (!valueNode.mEnqueued) {
         valueNode.mEnqueued = true;
         nodesQueue.add(valueNode);
       }
@@ -637,6 +688,32 @@ import java.util.concurrent.atomic.AtomicLong;
         finishedAnimations.add(animation);
       }
     }
+
+    while (!nodesQueue.isEmpty()) {
+      AnimatedNode nextNode = nodesQueue.poll();
+      if (nextNode.mChildren != null) {
+        for (int i = 0; i < nextNode.mChildren.size(); i++) {
+          AnimatedNode child = nextNode.mChildren.get(i);
+          child.mActiveIncomingNodes++;
+          if (!child.mEnqueued) {
+            child.mEnqueued = true;
+            nodesQueue.add(child);
+          }
+        }
+      }
+    }
+
+    nodesQueue.clear();
+    for (int i = 0; i < mAnimatedNodes.size(); i++) {
+      AnimatedNode node = mAnimatedNodes.valueAt(i);
+      if (node.mEnqueued && node.mActiveIncomingNodes == 0) {
+        node.mEnqueued = true;
+        nodesQueue.add(node);
+      } else {
+        node.mEnqueued = false;
+      }
+    }
+    /* run animations steps on animated nodes graph starting with active animations */
 
     ArrayList<PropsAnimatedNode> updatedPropNodes = new ArrayList<>();
     while (!nodesQueue.isEmpty()) {
@@ -649,10 +726,8 @@ import java.util.concurrent.atomic.AtomicLong;
         for (int i = 0; i < nextNode.mChildren.size(); i++) {
           AnimatedNode child = nextNode.mChildren.get(i);
           child.feedDataFromUpdatedParent(nextNode);
-          if (nextNode.mActiveIncomingNodes > 0) {
-            child.mVisitedActiveIncomingNodes++;
-          }
-          if (!child.mEnqueued && child.mVisitedActiveIncomingNodes == child.mActiveIncomingNodes) {
+          child.mActiveIncomingNodes--;
+          if (!child.mEnqueued && child.mActiveIncomingNodes == 0) {
             child.mEnqueued = true;
             nodesQueue.add(child);
           }
@@ -679,7 +754,6 @@ import java.util.concurrent.atomic.AtomicLong;
         WritableMap endCallbackResponse = Arguments.createMap();
         endCallbackResponse.putBoolean("finished", true);
         finishedAnimation.mEndCallback.invoke(endCallbackResponse);
-        finishedAnimation.mAnimatedValue.decrementActiveIncomingNodes();
       }
     }
   }

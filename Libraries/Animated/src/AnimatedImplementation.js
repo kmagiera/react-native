@@ -49,7 +49,7 @@ var NativeAPI = {
   },
   startAnimatingNode: function(nativeTag, config, endCallback) {
     var { frames, ...restConfig } = config;
-    console.log("Start animating", nativeTag, restConfig);
+    // console.log("Start animating", nativeTag, restConfig);
     UIManager.startAnimatingNode(nativeTag, config, endCallback);
   },
   setAnimatedNodeValue: function(tag, value) {
@@ -67,7 +67,11 @@ var NativeAPI = {
   dropAnimatedNode: function(tag) {
     // console.log("Drop animated node", tag);
     UIManager.dropAnimatedNode(tag);
-  }
+  },
+  connectEventToAnimatedNode: function(eventName, eventTarget, nodeId, propPath) {
+    // console.log("Connect event", eventName, eventTarget, nodeId, propPath);
+    UIManager.connectEventToAnimatedNode(eventName, eventTarget, nodeId, propPath);
+  },
 };
 
 class Animated {
@@ -1512,7 +1516,7 @@ function createAnimatedComponent(Component: any): any {
       var callback = () => {
         if (this.refs[refName].setNativeProps) {
           var value = this._propsAnimated.__getAnimatedValue();
-          // console.log("Set native props", this._propsAnimated.__getNativeTag(), findNodeHandle(this.refs[refName]), value);
+          // console.log("Set native props", findNodeHandle(this.refs[refName]), value);
           if (!value.__isNative) {
             this.refs[refName].setNativeProps(value);
           }
@@ -1849,8 +1853,13 @@ var event = function(
   argMapping: Array<?Mapping>,
   config?: ?EventConfig,
 ): () => void {
+  var connected = false;
   return function(...args): void {
-    var traverse = function(recMapping, recEvt, key) {
+    if (connected) {
+      return;
+    }
+    var traverse = function(recMapping, recEvt, keys) {
+      var key = keys[keys.length - 1];
       if (typeof recEvt === 'number') {
         invariant(
           recMapping instanceof AnimatedValue,
@@ -1858,6 +1867,22 @@ var event = function(
             ', event value must map to AnimatedValue'
         );
         recMapping.setValue(recEvt);
+        var obj = args;
+        for (var i = 0; i < keys.length; i++) {
+          if (keys[i] === 'nativeEvent') {
+            break;
+          }
+          obj = obj[keys[i]];
+        }
+        if (recMapping.__isNative) {
+          var nativeEvent = obj.nativeEvent;
+          NativeAPI.connectEventToAnimatedNode(
+            "topTouchMove",
+            nativeEvent.target,
+            recMapping.__getNativeTag(),
+            keys.slice(2));
+          connected = true;
+        }
         return;
       }
       invariant(
@@ -1869,11 +1894,11 @@ var event = function(
         'Bad event of type ' + typeof recEvt + ' for key ' + key
       );
       for (var key in recMapping) {
-        traverse(recMapping[key], recEvt[key], key);
+        traverse(recMapping[key], recEvt[key], [...keys, key]);
       }
     };
     argMapping.forEach((mapping, idx) => {
-      traverse(mapping, args[idx], 'arg' + idx);
+      traverse(mapping, args[idx], [idx]);
     });
     if (config && config.listener) {
       config.listener.apply(null, args);

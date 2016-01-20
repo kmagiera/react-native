@@ -10,6 +10,7 @@ var React = require('react-native');
 var NavigationAction = require('./NavigationAction');
 var NavigationStack = require('./NavigationStack');
 var NavigationContainer = require('./NavigationContainer');
+import burnCPU from '../burnCPU';
 var {
   Animated,
   PanResponder,
@@ -33,10 +34,20 @@ class NavigationCardView extends React.Component {
         return false;
       },
       onPanResponderGrant: (e, {dx, dy, moveX, moveY, x0, y0}) => {
+        this.props.dragStart.setValue(e.nativeEvent.pageX);
       },
-      onPanResponderMove: (e, {dx}) => {
-        this.props.position.setValue((- dx / this._lastWidth) + this.props.index);
-      },
+      onPanResponderMove: Animated.event(
+          [{nativeEvent: {pageX: this.props.dragX}}],
+          {
+            listener: () => {
+              burnCPU(4 * 17);
+            }
+          }
+      ),
+      // onPanResponderMove: (e, {dx}) => {
+      //   // this.props.position.setValue((- dx / this._lastWidth) + this.props.index);
+      //   this.props.dragX.setValue(e.nativeEvent.pageX);
+      // },
       onPanResponderRelease: (e, {vx, dx}) => {
         const xRatio = dx / this._lastWidth;
         const doesPop = (xRatio + vx) > 0.45;
@@ -44,14 +55,18 @@ class NavigationCardView extends React.Component {
           this.props.onNavigation(new NavigationAction.Pop({ velocity: vx }));
           return;
         }
-        Animated.spring(this.props.position, {
-          toValue: this.props.navigationStack.index
-        }).start();
+        // Animated.spring(this.props.position, {
+        //   toValue: this.props.navigationStack.index
+        // }).start();
+        Animated.spring(this.props.dragX, { toValue: 0 }).start();
+        Animated.spring(this.props.dragStart, { toValue: 0 }).start();
       },
       onPanResponderTerminate: (e, {vx, dx}) => {
-        Animated.spring(this.props.position, {
-          toValue: this.props.navigationStack.index
-        }).start();
+        // Animated.spring(this.props.position, {
+        //   toValue: this.props.navigationStack.index
+        // }).start();
+        Animated.spring(this.props.dragX, { toValue: 0 }).start();
+        Animated.spring(this.props.dragStart, { toValue: 0 }).start();
       },
     });
   }
@@ -65,7 +80,7 @@ class NavigationCardView extends React.Component {
     this.props.width.removeListener(this._widthListener);
   }
   render() {
-    const cardPosition = Animated.add(this.props.position, new Animated.Value(-this.props.index, true));
+    const cardPosition = Animated.add(this.props.position, new Animated.Value(-this.props.index));
     const gestureValue = Animated.multiply(cardPosition, this.props.width);
 
     return (
