@@ -83,6 +83,14 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
     reactContext.addLifecycleEventListener(this);
   }
 
+  /**
+   * This method gives an access to the underlying native view hierarchy manager. Note that all the
+   * operations executed on that object should be run in the UI thread. Use with caution
+   */
+  public NativeViewHierarchyManager getNativeViewHierarchyManager() {
+    return mUIImplementation.getUIViewOperationQueue().getNativeViewHierarchyManager();
+  }
+
   @Override
   public String getName() {
     return "RKUIManager";

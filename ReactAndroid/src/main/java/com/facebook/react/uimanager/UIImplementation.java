@@ -79,6 +79,10 @@ public class UIImplementation {
     return mViewManagers.get(className);
   }
 
+  /*package*/ UIViewOperationQueue getUIViewOperationQueue() {
+    return mOperationsQueue;
+  }
+
   /**
    * Registers a root node with a given tag, size and ThemedReactContext
    * and adds it to a node registry.
