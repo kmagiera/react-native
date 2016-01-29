@@ -263,6 +263,7 @@ dependencies {
     compile 'com.squareup.okhttp:okhttp-ws:2.5.0'
     compile 'com.squareup.okio:okio:1.6.0'
     compile 'org.webkit:android-jsc:r174650'
+    compile 'com.facebook.rebound:rebound:0.3.8'
 
     testCompile "junit:junit:${JUNIT_VERSION}"
     testCompile "org.powermock:powermock-api-mockito:${POWERMOCK_VERSION}"
