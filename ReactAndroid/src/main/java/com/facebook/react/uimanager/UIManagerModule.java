@@ -13,20 +13,34 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import android.content.Context;
+import android.os.Build;
+import android.util.DisplayMetrics;
+import android.view.Display;
+import android.view.WindowManager;
 
 import com.facebook.react.animation.Animation;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.LifecycleEventListener;
+import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.OnBatchCompleteListener;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.uimanager.animation.NativeAnimatedModule;
 import com.facebook.react.uimanager.debug.NotThreadSafeViewHierarchyUpdateDebugListener;
 import com.facebook.react.uimanager.events.EventDispatcher;
 import com.facebook.systrace.Systrace;
 import com.facebook.systrace.SystraceMessage;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Nullable;
 
 /**
  * <p>Native module to allow JS to create and update native Views.</p>
@@ -67,6 +81,7 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
   private final EventDispatcher mEventDispatcher;
   private final Map<String, Object> mModuleConstants;
   private final UIImplementation mUIImplementation;
+  private @Nullable NativeAnimatedModule mNativeAnimatedModule;
 
   private int mNextRootViewTag = 1;
   private int mBatchId = 0;
@@ -81,6 +96,13 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
     mUIImplementation = uiImplementation;
 
     reactContext.addLifecycleEventListener(this);
+  }
+
+  public NativeModule createOrGetNativeAnimatedModule() {
+    if (mNativeAnimatedModule == null) {
+      mNativeAnimatedModule = new NativeAnimatedModule(getReactApplicationContext());
+    }
+    return mNativeAnimatedModule;
   }
 
   @Override
@@ -430,6 +452,9 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
           .arg("BatchId", batchId)
           .flush();
     try {
+      if (mNativeAnimatedModule != null) {
+        mNativeAnimatedModule.runUpdates(mUIImplementation);
+      }
       mUIImplementation.dispatchViewUpdates(mEventDispatcher, batchId);
     } finally {
       Systrace.endSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE);

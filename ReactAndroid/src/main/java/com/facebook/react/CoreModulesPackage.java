@@ -84,6 +84,7 @@ import com.facebook.systrace.Systrace;
             mReactInstanceManager.getSourceUrl(),
             mReactInstanceManager.getDevSupportManager().getSourceMapUrl()),
         uiManagerModule,
+        uiManagerModule.createOrGetNativeAnimatedModule(),
         new DebugComponentOwnershipModule(catalystApplicationContext));
   }
 
