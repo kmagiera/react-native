@@ -181,6 +181,7 @@ const styles = StyleSheet.create({
   },
 });
 
+UIExplorerApp = require('./Playground');
 AppRegistry.registerComponent('UIExplorerApp', () => UIExplorerApp);
 
 module.exports = UIExplorerApp;

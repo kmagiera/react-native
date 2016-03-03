@@ -20,6 +20,7 @@ var SpringConfig = require('SpringConfig');
 var ViewStylePropTypes = require('ViewStylePropTypes');
 var NativeAnimatedModule = require('NativeModules').NativeAnimatedModule;
 
+var findNodeHandle = require('findNodeHandle');
 var flattenStyle = require('flattenStyle');
 var invariant = require('fbjs/lib/invariant');
 var requestAnimationFrame = require('fbjs/lib/requestAnimationFrame');
@@ -94,22 +95,29 @@ class Animated {
   /* Methods and props used by native Animated impl */
   __isNative: bool;
   __nativeTag: number;
+  __makeNative() {
+    if (!this.__isNative) {
+      console.log("NODE", this);
+      throw new Error('This node cannot be made a "native" animated node');
+    }
+  }
   __getNativeTag(): number {
     invariant(NativeAnimatedModule, 'Native animated module is not available');
+    invariant(this.__isNative, 'Attempt to get native tag from node not marked as "native"');
     if (this.__nativeTag === undefined) {
-      var nativeConfig = this.__getNativeConfig();
       this.__nativeTag = __nativeAnimatedTagCount++;
-      NativeAPI.createAnimatedNode(this.__nativeTag, nativeConfig);
+      NativeAnimatedAPI.createAnimatedNode(this.__nativeTag, this.__getNativeConfig());
     }
     return this.__nativeTag;
   }
-  __getNativeConfig(): any {
+  __getNativeConfig(): void {
     throw new Error('This JS animated node type cannot be used as native animated node');
   }
 }
 
 type AnimationConfig = {
   isInteraction?: bool;
+  useNativeDriver?: bool;
 };
 
 // Important note: start() and stop() will only be called at most once.
@@ -124,6 +132,7 @@ class Animation {
     onUpdate: (value: number) => void,
     onEnd: ?EndCallback,
     previousAnimation: ?Animation,
+    animatedValue: ?AnimatedValue
   ): void {}
   stop(): void {}
   // Helper function for subclasses to make sure onEnd is only called once.
@@ -142,11 +151,26 @@ class AnimatedWithChildren extends Animated {
     this._children = [];
   }
 
+  __makeNative() {
+    if (!this.__isNative) {
+      this.__isNative = true;
+      for (var child of this._children) {
+        child.__makeNative();
+      }
+    }
+  }
+
   __addChild(child: Animated): void {
     if (this._children.length === 0) {
       this.__attach();
     }
     this._children.push(child);
+    if (this.__isNative) {
+      // Only accept "native" animated nodes as children
+      child.__makeNative();
+      NativeAnimatedAPI
+        .connectAnimatedNodes(this.__getNativeTag(), child.__getNativeTag());
+    }
   }
 
   __removeChild(child: Animated): void {
@@ -154,6 +178,10 @@ class AnimatedWithChildren extends Animated {
     if (index === -1) {
       console.warn('Trying to remove a child that doesn\'t exist');
       return;
+    }
+    if (this.__isNative && child.__isNative) {
+      NativeAnimatedAPI
+        .disconnectAnimatedNodes(this.__getNativeTag(), child.__getNativeTag());
     }
     this._children.splice(index, 1);
     if (this._children.length === 0) {
@@ -163,6 +191,11 @@ class AnimatedWithChildren extends Animated {
 
   __getChildren(): Array<Animated> {
     return this._children;
+  }
+
+  __createNativeAnimatedNode(): void {
+    // create
+    super.__createNativeAnimatedNode();
   }
 }
 
@@ -227,6 +260,7 @@ class TimingAnimation extends Animation {
   _onUpdate: (value: number) => void;
   _animationFrame: any;
   _timeout: any;
+  _useNativeDriver: bool;
 
   constructor(
     config: TimingAnimationConfigSingle,
@@ -237,12 +271,28 @@ class TimingAnimation extends Animation {
     this._duration = config.duration !== undefined ? config.duration : 500;
     this._delay = config.delay !== undefined ? config.delay : 0;
     this.__isInteraction = config.isInteraction !== undefined ? config.isInteraction : true;
+    this._useNativeDriver = !!config.useNativeDriver;
+  }
+
+  _getNativeAnimationConfig(): any {
+    var frameDuration = 1000.0/60.0;
+    var mults = [];
+    for (var dt = 0.; dt <= this._duration; dt += frameDuration) {
+      mults.push(this._easing(dt / this._duration));
+    }
+    return {
+      type: 'frames',
+      frames: mults,
+      toValue: this._toValue,
+    }
   }
 
   start(
     fromValue: number,
     onUpdate: (value: number) => void,
     onEnd: ?EndCallback,
+    previousAnimation: ?Animation,
+    animatedValue: ?AnimatedValue
   ): void {
     this.__active = true;
     this._fromValue = fromValue;
@@ -255,7 +305,15 @@ class TimingAnimation extends Animation {
         this.__debouncedOnEnd({finished: true});
       } else {
         this._startTime = Date.now();
-        this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+        if (this._useNativeDriver) {
+          animatedValue.__makeNative();
+          NativeAnimatedAPI.startAnimatingNode(
+            animatedValue.__getNativeTag(),
+            this._getNativeAnimationConfig(),
+            this.__debouncedOnEnd.bind(this));
+        } else {
+          this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+        }
       }
     };
     if (this._delay) {
@@ -592,6 +650,7 @@ var _uniqueId = 1;
  */
 class AnimatedValue extends AnimatedWithChildren {
   _value: number;
+  _startingValue: number;
   _offset: number;
   _animation: ?Animation;
   _tracking: ?Animated;
@@ -599,7 +658,7 @@ class AnimatedValue extends AnimatedWithChildren {
 
   constructor(value: number) {
     super();
-    this._value = value;
+    this._startingValue = this._value = value;
     this._offset = 0;
     this._animation = null;
     this._listeners = {};
@@ -707,6 +766,7 @@ class AnimatedValue extends AnimatedWithChildren {
         callback && callback(result);
       },
       previousAnimation,
+      this
     );
   }
 
@@ -731,6 +791,13 @@ class AnimatedValue extends AnimatedWithChildren {
     _flush(this);
     for (var key in this._listeners) {
       this._listeners[key]({value: this.__getValue()});
+    }
+  }
+
+  __getNativeConfig(): any {
+    return {
+      type: 'value',
+      value: this._startingValue,
     }
   }
 }
@@ -1111,6 +1178,31 @@ class AnimatedStyle extends AnimatedWithChildren {
       }
     }
   }
+
+  __makeNative() {
+    super.__makeNative();
+    for (var key in this._style) {
+      var value = this._style[key];
+      if (value instanceof Animated) {
+        value.__makeNative();
+      }
+    }
+  }
+
+  __getNativeConfig(): any {
+    var styleConfig = {};
+    for (let styleKey in this._style) {
+      if (this._style[styleKey] instanceof Animated) {
+        styleConfig[styleKey] = this._style[styleKey].__getNativeTag();
+      }
+      // Non-animated styles are set using `setNativeProps`, no need
+      // to pass those as a part of the node config
+    }
+    return {
+      type: 'style',
+      style: styleConfig,
+    }
+  }
 }
 
 class AnimatedProps extends Animated {
@@ -1177,6 +1269,58 @@ class AnimatedProps extends Animated {
 
   update(): void {
     this._callback();
+  }
+
+  __makeNative(): void {
+    if (!this.__isNative) {
+      this.__isNative = true;
+      for (var key in this._props) {
+        var value = this._props[key];
+        if (value instanceof Animated) {
+          value.__makeNative();
+        }
+      }
+    }
+  }
+
+  __getStaticProps(): any {
+    var staticProps = {};
+    for (let styleKey in this._style) {
+      let value = this._style[styleKey];
+      if (!(value instanceof Animated)) {
+        staticProps[styleKey] = value;
+      }
+    }
+    return staticProps;
+  }
+
+  setNativeView(nativeView: number): void {
+    if (!this.__isNative) return;
+    invariant(this._nativeViewTag === undefined, 'Native view tag already set.');
+    this._nativeViewTag = findNodeHandle(nativeView);
+    NativeAnimatedAPI
+      .connectAnimatedNodeToView(this.__getNativeTag(), this._nativeViewTag);
+    var staticProps = {};
+    if (this._props.style) {
+      let staticProps = this._props.style.__getStaticProps();
+      if (Object.keys(staticProps).length > 0) {
+        nativeView.setNativeProps({style: staticProps});
+      }
+    }
+  }
+
+  __getNativeConfig(): any {
+    var propsConfig = {};
+    for (let propKey in this._props) {
+      var value = this._props[propKey];
+      if (value instanceof Animated) {
+        propsConfig[propKey] = value.__getNativeTag();
+      }
+    }
+    return {
+      type: 'props',
+      props: propsConfig,
+    };
   }
 }
 

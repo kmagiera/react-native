@@ -30,7 +30,7 @@ let MIN_TIME_BETWEEN_FLUSHES_MS = 5;
 
 let TRACE_TAG_REACT_APPS = 1 << 17;
 
-let SPY_MODE = false;
+let SPY_MODE = true;
 
 let MethodTypes = keyMirror({
   remote: null,
