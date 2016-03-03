@@ -18,6 +18,7 @@ var React = require('React');
 var Set = require('Set');
 var SpringConfig = require('SpringConfig');
 var ViewStylePropTypes = require('ViewStylePropTypes');
+var NativeAnimatedModule = require('NativeModules').NativeAnimatedModule;
 
 var flattenStyle = require('flattenStyle');
 var invariant = require('fbjs/lib/invariant');
@@ -27,6 +28,57 @@ import type { InterpolationConfigType } from 'Interpolation';
 
 type EndResult = {finished: bool};
 type EndCallback = (result: EndResult) => void;
+
+var __nativeAnimatedTagCount = 1;
+
+var NativeAnimatedAPI = {
+  createAnimatedNode: function(tag, config) {
+    // console.log("Create animated", tag, config);
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    NativeAnimatedModule.createAnimatedNode(tag, config);
+  },
+  connectAnimatedNodes: function(parentTag, childTag) {
+    // console.log("Add child", parentTag, "->", childTag);
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    NativeAnimatedModule.connectAnimatedNodes(parentTag, childTag);
+  },
+  disconnectAnimatedNodes: function(parentTag, childTag) {
+    // console.log("Remove child", parentTag, "->", childTag);
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    NativeAnimatedModule.disconnectAnimatedNodes(parentTag, childTag);
+  },
+  startAnimatingNode: function(nativeTag, config, endCallback) {
+    var { frames, ...restConfig } = config;
+    // console.log("Start animating", nativeTag, restConfig);
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    NativeAnimatedModule.startAnimatingNode(nativeTag, config, endCallback);
+  },
+  setAnimatedNodeValue: function(tag, value) {
+    // console.log("Set animated value", tag, value);
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    NativeAnimatedModule.setAnimatedNodeValue(tag, value);
+  },
+  connectAnimatedNodeToView: function(nodeTag, viewTag) {
+    // console.log("Set native view tag", viewTag, "for", nodeTag);
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    NativeAnimatedModule.connectAnimatedNodeToView(nodeTag, viewTag);
+  },
+  disconnectAnimatedNodeFromView: function(nodeTag, viewTag) {
+    // console.log("Set native view tag", viewTag, "for", nodeTag);
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    NativeAnimatedModule.disconnectAnimatedNodeFromView(nodeTag, viewTag);
+  },
+  dropAnimatedNode: function(tag) {
+    // console.log("Drop animated node", tag);
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    NativeAnimatedModule.dropAnimatedNode(tag);
+  },
+  connectEventToAnimatedNode: function(eventName, eventTarget, nodeId, propPath) {
+    // console.log("Connect event", eventName, eventTarget, nodeId, propPath);
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    NativeAnimatedModule.connectEventToAnimatedNode(eventName, eventTarget, nodeId, propPath);
+  },
+};
 
 // Note(vjeux): this would be better as an interface but flow doesn't
 // support them yet
@@ -38,6 +90,22 @@ class Animated {
   __addChild(child: Animated) {}
   __removeChild(child: Animated) {}
   __getChildren(): Array<Animated> { return []; }
+
+  /* Methods and props used by native Animated impl */
+  __isNative: bool;
+  __nativeTag: number;
+  __getNativeTag(): number {
+    invariant(NativeAnimatedModule, 'Native animated module is not available');
+    if (this.__nativeTag === undefined) {
+      var nativeConfig = this.__getNativeConfig();
+      this.__nativeTag = __nativeAnimatedTagCount++;
+      NativeAPI.createAnimatedNode(this.__nativeTag, nativeConfig);
+    }
+    return this.__nativeTag;
+  }
+  __getNativeConfig(): any {
+    throw new Error('This JS animated node type cannot be used as native animated node');
+  }
 }
 
 type AnimationConfig = {

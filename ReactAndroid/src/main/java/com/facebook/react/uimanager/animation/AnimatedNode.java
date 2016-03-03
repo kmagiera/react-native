@@ -1,6 +1,7 @@
 package com.facebook.react.uimanager.animation;
 
 import com.facebook.infer.annotation.Assertions;
+import com.facebook.react.bridge.JavaOnlyMap;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +42,7 @@ import javax.annotation.Nullable;
   public void runAnimationStep(long frameTimeNanos) {
   }
 
-//  public void saveInPropMap(String key, SimpleMap propsMap) {
-//    propsMap.putDouble(key, mValue);
-//  }
+  public void saveInPropMap(String key, JavaOnlyMap propsMap) {
+    propsMap.putDouble(key, mValue);
+  }
 }

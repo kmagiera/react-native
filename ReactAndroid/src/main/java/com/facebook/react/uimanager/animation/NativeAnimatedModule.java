@@ -32,19 +32,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class NativeAnimatedModule extends BaseJavaModule implements LifecycleEventListener {
 
-  private static class UpdateViewData {
-    int mViewTag;
-    ReadableMap mProps;
-
-    public UpdateViewData(int tag, ReadableMap props) {
-      mViewTag = tag;
-      mProps = props;
-    }
-  }
-
   private final Object mAnimatedGraphMonitor = new Object();
 
-  private final SparseArray<AnimatedNode> mAnimatedNodes = new SparseArray<>();
+  /*package*/ final SparseArray<AnimatedNode> mAnimatedNodes = new SparseArray<>();
   private final ArrayList<AnimationDriver> mActiveAnimations = new ArrayList<>();
   private final ArrayList<UpdateViewData> mEnqueuedUpdates = new ArrayList<>();
   private final ArrayList<AnimatedNode> mUpdatedNodes = new ArrayList<>();

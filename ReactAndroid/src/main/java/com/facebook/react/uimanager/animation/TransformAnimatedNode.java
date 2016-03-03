@@ -1,8 +1,10 @@
 package com.facebook.react.uimanager.animation;
 
+import com.facebook.react.bridge.JavaOnlyMap;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
+import com.facebook.react.bridge.WritableArray;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +37,7 @@ import java.util.Map;
           mStaticProps.put(propKey, statics.getDouble(propKey));
           break;
         case Array:
-          mStaticProps.put(propKey, SimpleArray.copy(statics.getArray(propKey)));
+          mStaticProps.put(propKey, statics.getArray(propKey));
           break;
       }
     }
@@ -43,9 +45,9 @@ import java.util.Map;
   }
 
   @Override
-  public void saveInPropMap(String key, SimpleMap propsMap) {
+  public void saveInPropMap(String key, JavaOnlyMap propsMap) {
   /* ignore key, style names are flattened */
-    SimpleMap transformMap = new SimpleMap();
+    JavaOnlyMap transformMap = new JavaOnlyMap();
     for (String propKey : mPropMapping.keySet()) {
       // TODO: use entryset = optimize
       int nodeIndex = mPropMapping.get(propKey);

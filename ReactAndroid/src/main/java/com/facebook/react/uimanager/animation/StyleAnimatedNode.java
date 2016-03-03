@@ -1,5 +1,6 @@
 package com.facebook.react.uimanager.animation;
 
+import com.facebook.react.bridge.JavaOnlyMap;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 
@@ -26,7 +27,7 @@ import java.util.Map;
   }
 
   @Override
-  public void saveInPropMap(String key, SimpleMap propsMap) {
+  public void saveInPropMap(String key, JavaOnlyMap propsMap) {
   /* ignore key, style names are flattened */
     for (String propKey : mPropMapping.keySet()) {
       // TODO: use entryset = optimize

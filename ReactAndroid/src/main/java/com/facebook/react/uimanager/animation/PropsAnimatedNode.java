@@ -1,5 +1,6 @@
 package com.facebook.react.uimanager.animation;
 
+import com.facebook.react.bridge.JavaOnlyMap;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 
@@ -26,8 +27,8 @@ import java.util.Map;
     mNativeAnimatedModule = nativeAnimatedModule;
   }
 
-  public NativeAnimatedModule.UpdateViewData createUpdateViewData() {
-    SimpleMap propsMap = new SimpleMap();
+  public UpdateViewData createUpdateViewData() {
+    JavaOnlyMap propsMap = new JavaOnlyMap();
     for (String propKey : mPropMapping.keySet()) {
       // TODO: use entryset = optimize
       int nodeIndex = mPropMapping.get(propKey);
@@ -38,6 +39,6 @@ import java.util.Map;
         throw new IllegalArgumentException("Mapped style node does not exists");
       }
     }
-    return new NativeAnimatedModule.UpdateViewData(mConnectedViewTag, propsMap);
+    return new UpdateViewData(mConnectedViewTag, propsMap);
   }
 }
