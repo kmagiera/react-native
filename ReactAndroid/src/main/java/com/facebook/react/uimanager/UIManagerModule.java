@@ -100,7 +100,8 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
 
   public NativeModule createOrGetNativeAnimatedModule() {
     if (mNativeAnimatedModule == null) {
-      mNativeAnimatedModule = new NativeAnimatedModule(getReactApplicationContext());
+      mNativeAnimatedModule =
+        new NativeAnimatedModule(getReactApplicationContext(), mUIImplementation);
     }
     return mNativeAnimatedModule;
   }
@@ -453,7 +454,7 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
           .flush();
     try {
       if (mNativeAnimatedModule != null) {
-        mNativeAnimatedModule.runUpdates(mUIImplementation);
+        mNativeAnimatedModule.dispatchUpdates(mUIImplementation);
       }
       mUIImplementation.dispatchViewUpdates(mEventDispatcher, batchId);
     } finally {
