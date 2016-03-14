@@ -6,6 +6,7 @@ import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.UIImplementation;
 
@@ -23,6 +24,10 @@ import java.util.Queue;
   private final ArrayList<UpdateViewData> mEnqueuedUpdates = new ArrayList<>();
   private final ArrayList<AnimatedNode> mUpdatedNodes = new ArrayList<>();
   private int mAnimatedGraphDFSColor = 0;
+
+  /*package*/ AnimatedNode getNodeById(int id) {
+    return mAnimatedNodes.get(id);
+  }
 
   public boolean hasActiveAnimations() {
     return !mActiveAnimations.isEmpty() || !mEnqueuedUpdates.isEmpty();
@@ -172,12 +177,6 @@ import java.util.Queue;
    * "predecessors" have already been visited.
    */
   private void runAnimationStep(long frameTimeNanos) {
-    synchronized (mAnimatedGraphMonitor) {
-      runAnimationStepSynchronized(frameTimeNanos);
-    }
-  }
-
-  private void runAnimationStepSynchronized(long frameTimeNanos) {
     int activeNodesCount = 0;
     int updatedNodesCount = 0;
     boolean hasFinishedAnimations = false;
@@ -329,9 +328,9 @@ import java.util.Queue;
     }
   }
 
-  public void runUpdates(UIImplementation uiImplementation) {
-    // Assert on native thread
-    runAnimationStep(mLastFrameTimeNanos.get());
+  public void runUpdates(UIImplementation uiImplementation, long frameTimeNanos) {
+    UiThreadUtil.assertOnUiThread();
+    runAnimationStep(frameTimeNanos);
     for (int i = 0; i < mEnqueuedUpdates.size(); i++) {
       UpdateViewData data = mEnqueuedUpdates.get(i);
 //      Log.e("CAT", "Update View " + data.mViewTag + ", " + data.mProps);

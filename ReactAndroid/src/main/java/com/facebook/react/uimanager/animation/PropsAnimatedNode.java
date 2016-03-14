@@ -12,10 +12,10 @@ import java.util.Map;
 /*package*/ class PropsAnimatedNode extends AnimatedNode {
 
   /*package*/ int mConnectedViewTag = -1;
-  private final NativeAnimatedModule mNativeAnimatedModule;
+  private final NativeAnimatedNodesManager mNativeAnimatedNodesManager;
   private final Map<String, Integer> mPropMapping;
 
-  PropsAnimatedNode(ReadableMap config, NativeAnimatedModule nativeAnimatedModule) {
+  PropsAnimatedNode(ReadableMap config, NativeAnimatedNodesManager nativeAnimatedNodesManager) {
     ReadableMap props = config.getMap("props");
     ReadableMapKeySetIterator iter = props.keySetIterator();
     mPropMapping = new HashMap<>();
@@ -24,7 +24,7 @@ import java.util.Map;
       int nodeIndex = props.getInt(propKey);
       mPropMapping.put(propKey, nodeIndex);
     }
-    mNativeAnimatedModule = nativeAnimatedModule;
+    mNativeAnimatedNodesManager = nativeAnimatedNodesManager;
   }
 
   public UpdateViewData createUpdateViewData() {
@@ -32,7 +32,7 @@ import java.util.Map;
     for (String propKey : mPropMapping.keySet()) {
       // TODO: use entryset = optimize
       int nodeIndex = mPropMapping.get(propKey);
-      AnimatedNode node = mNativeAnimatedModule.mAnimatedNodes.get(nodeIndex);
+      AnimatedNode node = mNativeAnimatedNodesManager.getNodeById(nodeIndex);
       if (node != null) {
         node.saveInPropMap(propKey, propsMap);
       } else {

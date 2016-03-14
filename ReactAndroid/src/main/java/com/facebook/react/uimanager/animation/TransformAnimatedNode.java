@@ -13,11 +13,11 @@ import java.util.Map;
  */
 /*package*/ class TransformAnimatedNode extends AnimatedNode {
 
-  private final NativeAnimatedModule mNativeAnimatedModule;
+  private final NativeAnimatedNodesManager mNativeANimatedNodesManager;
   private final Map<String, Integer> mPropMapping;
   private final Map<String, Object> mStaticProps;
 
-  TransformAnimatedNode(ReadableMap config, NativeAnimatedModule nativeAnimatedModule) {
+  TransformAnimatedNode(ReadableMap config, NativeAnimatedNodesManager nativeAnimatedNodesManager) {
     ReadableMap transforms = config.getMap("animated");
     ReadableMapKeySetIterator iter = transforms.keySetIterator();
     mPropMapping = new HashMap<>();
@@ -41,7 +41,7 @@ import java.util.Map;
           break;
       }
     }
-    this.mNativeAnimatedModule = nativeAnimatedModule;
+    mNativeANimatedNodesManager = nativeAnimatedNodesManager;
   }
 
   @Override
@@ -51,7 +51,7 @@ import java.util.Map;
     for (String propKey : mPropMapping.keySet()) {
       // TODO: use entryset = optimize
       int nodeIndex = mPropMapping.get(propKey);
-      AnimatedNode node = mNativeAnimatedModule.mAnimatedNodes.get(nodeIndex);
+      AnimatedNode node = mNativeANimatedNodesManager.getNodeById(nodeIndex);
       if (node != null) {
         node.saveInPropMap(propKey, transformMap);
       } else {

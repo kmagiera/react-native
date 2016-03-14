@@ -36,7 +36,6 @@ package com.facebook.react.uimanager.animation;
     void execute(NativeAnimatedNodesManager animatedNodesManager);
   }
 
-  private final AtomicLong mLastFrameTimeNanos = new AtomicLong(0);
   private final GuardedChoreographerFrameCallback mAnimatedFrameCallback;
   private final Object mOperationsCopyLock = new Object();
   private ArrayList<UIThreadOperation> mOperations = new ArrayList<>();
@@ -54,7 +53,6 @@ package com.facebook.react.uimanager.animation;
       @Override
       protected void doFrameGuarded(final long frameTimeNanos) {
         mAnimatedFrameCallbackEnqueued = false;
-        mLastFrameTimeNanos.set(frameTimeNanos);
 
         ArrayList<UIThreadOperation> operations;
         synchronized (mOperationsCopyLock) {
@@ -67,7 +65,7 @@ package com.facebook.react.uimanager.animation;
             operations.get(i).execute(mNodesManager);
           }
         }
-        mNodesManager.runUpdates(uiImplementation);
+        mNodesManager.runUpdates(uiImplementation, frameTimeNanos);
 
         enqueueFrameCallbackIfNeeded();
       }
@@ -117,7 +115,7 @@ package com.facebook.react.uimanager.animation;
 
   private void enqueueFrameCallbackIfNeeded() {
     if (!mAnimatedFrameCallbackEnqueued &&
-        (mNodesManager.hasActiveAnimations() || mReadyOperations != null) {
+        (mNodesManager.hasActiveAnimations() || mReadyOperations != null)) {
       mAnimatedFrameCallbackEnqueued = true;
       ReactChoreographer.getInstance().postFrameCallback(
         ReactChoreographer.CallbackType.ANIMATIONS,

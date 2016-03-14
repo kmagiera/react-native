@@ -6,11 +6,14 @@ import com.facebook.react.bridge.ReadableMap;
 /**
  */
 class MultiplicationAnimatedNode extends AnimatedNode {
-  private final NativeAnimatedModule mNativeAnimatedModule;
+
+  private final NativeAnimatedNodesManager mNativeAnimatedNodesManager;
   private final int[] mInputNodes;
 
-  MultiplicationAnimatedNode(ReadableMap config, NativeAnimatedModule nativeAnimatedModule) {
-    mNativeAnimatedModule = nativeAnimatedModule;
+  MultiplicationAnimatedNode(
+      ReadableMap config,
+      NativeAnimatedNodesManager nativeAnimatedNodesManager) {
+    mNativeAnimatedNodesManager = nativeAnimatedNodesManager;
     ReadableArray inputNodes = config.getArray("input");
     mInputNodes = new int[inputNodes.size()];
     for (int i = 0; i < mInputNodes.length; i++) {
@@ -22,7 +25,7 @@ class MultiplicationAnimatedNode extends AnimatedNode {
   public void runAnimationStep(long frameTimeNanos) {
     mValue = 1;
     for (int i = 0; i < mInputNodes.length; i++) {
-      mValue *= mNativeAnimatedModule.mAnimatedNodes.get(mInputNodes[i]).mValue;
+      mValue *= mNativeAnimatedNodesManager.getNodeById(mInputNodes[i]).mValue;
     }
   }
 }

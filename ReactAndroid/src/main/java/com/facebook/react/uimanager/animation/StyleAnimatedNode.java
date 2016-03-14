@@ -11,10 +11,10 @@ import java.util.Map;
  */
 /*package*/ class StyleAnimatedNode extends AnimatedNode {
 
-  private final NativeAnimatedModule mNativeAnimatedModule;
+  private final NativeAnimatedNodesManager mNativeAnimatedNodesManager;
   private final Map<String, Integer> mPropMapping;
 
-  StyleAnimatedNode(ReadableMap config, NativeAnimatedModule nativeAnimatedModule) {
+  StyleAnimatedNode(ReadableMap config, NativeAnimatedNodesManager nativeAnimatedNodesManager) {
     ReadableMap style = config.getMap("style");
     ReadableMapKeySetIterator iter = style.keySetIterator();
     mPropMapping = new HashMap<>();
@@ -23,7 +23,7 @@ import java.util.Map;
       int nodeIndex = style.getInt(propKey);
       mPropMapping.put(propKey, nodeIndex);
     }
-    mNativeAnimatedModule = nativeAnimatedModule;
+    mNativeAnimatedNodesManager = nativeAnimatedNodesManager;
   }
 
   @Override
@@ -32,7 +32,7 @@ import java.util.Map;
     for (String propKey : mPropMapping.keySet()) {
       // TODO: use entryset = optimize
       int nodeIndex = mPropMapping.get(propKey);
-      AnimatedNode node = mNativeAnimatedModule.mAnimatedNodes.get(nodeIndex);
+      AnimatedNode node = mNativeAnimatedNodesManager.getNodeById(nodeIndex);
       if (node != null) {
         node.saveInPropMap(propKey, propsMap);
       } else {
