@@ -1,3 +1,12 @@
+/**
+ * Copyright (c) 2015-present, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
+
 package com.facebook.react.uimanager.animation;
 
 import com.facebook.react.bridge.ReadableMap;
@@ -7,6 +16,10 @@ import com.facebook.rebound.SpringConfig;
 import com.facebook.rebound.SpringLooper;
 
 /**
+ * Implementation of {@link AnimationDriver} providing support for running spring-based animation
+ * off the JS thread.
+ *
+ * It uses implementation of spring system from "rebound" library.
  */
 class SpringAnimationDriver extends AnimationDriver {
 
@@ -37,14 +50,12 @@ class SpringAnimationDriver extends AnimationDriver {
     double restSpeedThreshold = config.getDouble("restSpeedThreshold");
     double tension = config.getDouble("tension");
     double friction = config.getDouble("friction");
-//      double initialVelocity = config.getDouble("initialVelocity");
     double toValue = config.getDouble("toValue");
 
     mSpringSystem = new NoopSpringSystem();
     mSpring = mSpringSystem.createSpring()
       .setSpringConfig(new SpringConfig(tension, friction))
       .setEndValue(toValue)
-//              .setVelocity(initialVelocity)
       .setOvershootClampingEnabled(overshootClamping)
       .setRestDisplacementThreshold(restDisplacementThreshold)
       .setRestSpeedThreshold(restSpeedThreshold);
@@ -59,12 +70,10 @@ class SpringAnimationDriver extends AnimationDriver {
       mSpringStarted = true;
     }
     long ts = frameTimeMillis - mLastTime;
-//      Log.e("CAT", "Value " + mAnimatedValue.mValue + ", " + ts + ", " + frameTimeMillis);
     mSpringSystem.loop(frameTimeMillis - mLastTime);
     mLastTime = frameTimeMillis;
     mAnimatedValue.mValue = mSpring.getCurrentValue();
     mHasFinished = mSpring.isAtRest();
-//      Log.e("CAT", "RUN SPRING " + ts + " cur " + mSpring.getCurrentValue() + ", " + mSpring.isAtRest() + ", " + mSpring.getEndValue());
     return true;
   }
 }

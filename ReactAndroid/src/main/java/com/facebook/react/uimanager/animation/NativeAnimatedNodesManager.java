@@ -31,7 +31,7 @@ import java.util.Queue;
 
   private final SparseArray<AnimatedNode> mAnimatedNodes = new SparseArray<>();
   private final ArrayList<AnimationDriver> mActiveAnimations = new ArrayList<>();
-  private final ArrayList<UpdateViewData> mEnqueuedUpdates = new ArrayList<>();
+  private final ArrayList<PropsAnimatedNode.UpdateViewData> mEnqueuedUpdates = new ArrayList<>();
   private final ArrayList<AnimatedNode> mUpdatedNodes = new ArrayList<>();
   private int mAnimatedGraphDFSColor = 0;
 
@@ -304,7 +304,7 @@ import java.util.Queue;
     // Collect UI updates
     for (int i = 0; i < updatedPropNodes.size(); i++) {
       PropsAnimatedNode propNode = updatedPropNodes.get(i);
-      UpdateViewData data = propNode.createUpdateViewData();
+      PropsAnimatedNode.UpdateViewData data = propNode.createUpdateViewData();
       if (data.mViewTag > 0) {
         mEnqueuedUpdates.add(propNode.createUpdateViewData());
       }
@@ -336,7 +336,7 @@ import java.util.Queue;
     UiThreadUtil.assertOnUiThread();
     runAnimationStep(frameTimeNanos);
     for (int i = 0; i < mEnqueuedUpdates.size(); i++) {
-      UpdateViewData data = mEnqueuedUpdates.get(i);
+      PropsAnimatedNode.UpdateViewData data = mEnqueuedUpdates.get(i);
       nativeViewHierarchyManager.updateProperties(
           data.mViewTag,
           new ReactStylesDiffMap(data.mProps));

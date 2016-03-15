@@ -23,6 +23,16 @@ import java.util.Map;
  */
 /*package*/ class PropsAnimatedNode extends AnimatedNode {
 
+  public static class UpdateViewData {
+    int mViewTag;
+    ReadableMap mProps;
+
+    public UpdateViewData(int tag, ReadableMap props) {
+      mViewTag = tag;
+      mProps = props;
+    }
+  }
+
   /*package*/ int mConnectedViewTag = -1;
   private final NativeAnimatedNodesManager mNativeAnimatedNodesManager;
   private final Map<String, Integer> mPropMapping;

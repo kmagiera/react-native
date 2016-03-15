@@ -24,6 +24,9 @@ import com.facebook.react.uimanager.ReactChoreographer;
 
 import java.util.ArrayList;
 
+/**
+ * Module that exposes interface for creating and managing animated nodes on the "native" side.
+ */
 public class NativeAnimatedModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
 
   private interface UIThreadOperation {
