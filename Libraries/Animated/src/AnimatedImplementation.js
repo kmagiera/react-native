@@ -1216,10 +1216,22 @@ class AnimatedStyle extends AnimatedWithChildren {
       style: styleConfig,
     }
   }
+
+  __getStaticProps(): any {
+    var staticProps = {};
+    for (let styleKey in this._style) {
+      let value = this._style[styleKey];
+      if (!(value instanceof Animated)) {
+        staticProps[styleKey] = value;
+      }
+    }
+    return staticProps;
+  }
 }
 
 class AnimatedProps extends Animated {
   _props: Object;
+  _animatedView: any;
   _callback: () => void;
 
   constructor(
@@ -1293,6 +1305,9 @@ class AnimatedProps extends Animated {
           value.__makeNative();
         }
       }
+      if (this._animatedView) {
+        this.__connectAnimatedView();
+      }
     }
   }
 
@@ -1307,17 +1322,24 @@ class AnimatedProps extends Animated {
     return staticProps;
   }
 
-  setNativeView(nativeView: number): void {
-    if (!this.__isNative) return;
-    invariant(this._nativeViewTag === undefined, 'Native view tag already set.');
-    this._nativeViewTag = findNodeHandle(nativeView);
+  setNativeView(animatedView: any): void {
+    invariant(this._animatedView === undefined, 'Animated view already set.');
+    this._animatedView = animatedView;
+    if (this.__isNative) {
+      this.__connectAnimatedView();
+    }
+  }
+
+  __connectAnimatedView(): void {
+    invariant(this.__isNative, 'Expected node to be marked as "native"');
+    var nativeViewTag = findNodeHandle(this._animatedView);
     NativeAnimatedAPI
-      .connectAnimatedNodeToView(this.__getNativeTag(), this._nativeViewTag);
+      .connectAnimatedNodeToView(this.__getNativeTag(), nativeViewTag);
     var staticProps = {};
     if (this._props.style) {
       let staticProps = this._props.style.__getStaticProps();
       if (Object.keys(staticProps).length > 0) {
-        nativeView.setNativeProps({style: staticProps});
+        this._animatedView.setNativeProps({style: staticProps});
       }
     }
   }

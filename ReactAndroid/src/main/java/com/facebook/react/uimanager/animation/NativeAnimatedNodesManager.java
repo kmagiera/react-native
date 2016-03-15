@@ -1,3 +1,12 @@
+/**
+ * Copyright (c) 2015-present, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
+
 package com.facebook.react.uimanager.animation;
 
 import android.util.SparseArray;
@@ -8,14 +17,15 @@ import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.uimanager.UIImplementation;
+import com.facebook.react.uimanager.NativeViewHierarchyManager;
+import com.facebook.react.uimanager.ReactStylesDiffMap;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Queue;
 
 /**
- * SHould be accessed only from the UI Thread
+ * Should be accessed only from the UI Thread
  */
 /*package*/ class NativeAnimatedNodesManager {
 
@@ -30,7 +40,7 @@ import java.util.Queue;
   }
 
   public boolean hasActiveAnimations() {
-    return !mActiveAnimations.isEmpty() || !mEnqueuedUpdates.isEmpty();
+    return !mActiveAnimations.isEmpty();
   }
 
   public void createAnimatedNode(int tag, ReadableMap config) {
@@ -45,16 +55,8 @@ import java.util.Queue;
     } else if ("value".equals(type)) {
       node = new ValueAnimatedNode(config);
       mUpdatedNodes.add(node);
-    } else if ("transform".equals(type)) {
-      node = new TransformAnimatedNode(config, this);
-    } else if ("interpolation".equals(type)) {
-      node = new InterpolationAnimatedNode(config);
     } else if ("props".equals(type)) {
       node = new PropsAnimatedNode(config, this);
-    } else if ("addition".equals(type)) {
-      node = new AdditionAnimatedNode(config, this);
-    } else if ("multiplication".equals(type)) {
-      node = new MultiplicationAnimatedNode(config, this);
     } else {
       throw new JSApplicationIllegalArgumentException("Unsupported node type: " + type);
     }
@@ -173,7 +175,7 @@ import java.util.Queue;
    * First DFS starts with nodes that are in {@code mUpdatedNodes} or directly attached to an active
    * animation (hence linked to objects from {@code mActiveAnimations}). In that step we calculate
    * an attribute {@code mActiveIncomingNodes}. The second DFS runs in topological order over the
-   * subgraph of *active* nodes. This is done by adding node to the DFS queue only if all its
+   * sub-graph of *active* nodes. This is done by adding node to the DFS queue only if all its
    * "predecessors" have already been visited.
    */
   private void runAnimationStep(long frameTimeNanos) {
@@ -322,19 +324,22 @@ import java.util.Queue;
           animation.mEndCallback.invoke(endCallbackResponse);
         }
       }
-      for (int i = mActiveAnimations.size(); i >= dest; i--) {
+      for (int i = mActiveAnimations.size() - 1; i >= dest; i--) {
         mActiveAnimations.remove(i);
       }
     }
   }
 
-  public void runUpdates(UIImplementation uiImplementation, long frameTimeNanos) {
+  public void runUpdates(
+      NativeViewHierarchyManager nativeViewHierarchyManager,
+      long frameTimeNanos) {
     UiThreadUtil.assertOnUiThread();
     runAnimationStep(frameTimeNanos);
     for (int i = 0; i < mEnqueuedUpdates.size(); i++) {
       UpdateViewData data = mEnqueuedUpdates.get(i);
-//      Log.e("CAT", "Update View " + data.mViewTag + ", " + data.mProps);
-      uiImplementation.updateView(data.mViewTag, null, data.mProps);
+      nativeViewHierarchyManager.updateProperties(
+          data.mViewTag,
+          new ReactStylesDiffMap(data.mProps));
     }
     mEnqueuedUpdates.clear();
   }

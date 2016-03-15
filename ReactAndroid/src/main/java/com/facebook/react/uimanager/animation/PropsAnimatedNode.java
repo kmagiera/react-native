@@ -1,3 +1,12 @@
+/**
+ * Copyright (c) 2015-present, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
+
 package com.facebook.react.uimanager.animation;
 
 import com.facebook.react.bridge.JavaOnlyMap;
@@ -8,6 +17,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * Animated node that represents view properties. There is a special handling logic implemented for
+ * the nodes of this type in {@link NativeAnimatedNodesManager} that is responsible for extracting
+ * a map of updated properties, which can be then passed down to the view.
  */
 /*package*/ class PropsAnimatedNode extends AnimatedNode {
 

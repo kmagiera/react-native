@@ -1,4 +1,4 @@
-  /**
+/**
  * Copyright (c) 2015-present, Facebook, Inc.
  * All rights reserved.
  *
@@ -9,28 +9,22 @@
 
 package com.facebook.react.uimanager.animation;
 
-  import android.support.annotation.Nullable;
+import android.support.annotation.Nullable;
 
-  import com.facebook.react.bridge.BaseJavaModule;
-  import com.facebook.react.bridge.Callback;
-  import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
-  import com.facebook.react.bridge.LifecycleEventListener;
-  import com.facebook.react.bridge.ReactApplicationContext;
-  import com.facebook.react.bridge.ReactContext;
-  import com.facebook.react.bridge.ReactMethod;
-  import com.facebook.react.bridge.ReadableMap;
-  import com.facebook.react.uimanager.GuardedChoreographerFrameCallback;
-  import com.facebook.react.uimanager.ReactChoreographer;
-  import com.facebook.react.uimanager.UIImplementation;
-  import com.facebook.systrace.Systrace;
-  import com.facebook.systrace.SystraceMessage;
+import com.facebook.infer.annotation.Assertions;
+import com.facebook.react.bridge.Callback;
+import com.facebook.react.bridge.LifecycleEventListener;
+import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReactContextBaseJavaModule;
+import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.uimanager.GuardedChoreographerFrameCallback;
+import com.facebook.react.uimanager.NativeViewHierarchyManager;
+import com.facebook.react.uimanager.ReactChoreographer;
 
-  import java.util.ArrayList;
-  import java.util.concurrent.atomic.AtomicLong;
+import java.util.ArrayList;
 
-  import javax.annotation.concurrent.GuardedBy;
-
-  public class NativeAnimatedModule extends BaseJavaModule implements LifecycleEventListener {
+public class NativeAnimatedModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
 
   private interface UIThreadOperation {
     void execute(NativeAnimatedNodesManager animatedNodesManager);
@@ -38,8 +32,8 @@ package com.facebook.react.uimanager.animation;
 
   private final GuardedChoreographerFrameCallback mAnimatedFrameCallback;
   private final Object mOperationsCopyLock = new Object();
+  private @Nullable ReactChoreographer mReactChoreographer;
   private ArrayList<UIThreadOperation> mOperations = new ArrayList<>();
-  private volatile boolean mAnimatedFrameCallbackEnqueued = false;
   private volatile @Nullable ArrayList<UIThreadOperation> mReadyOperations = null;
 
   /*
@@ -47,12 +41,14 @@ package com.facebook.react.uimanager.animation;
    */
   private final NativeAnimatedNodesManager mNodesManager;
 
-  public NativeAnimatedModule(ReactContext reactContext, final UIImplementation uiImplementation) {
+  public NativeAnimatedModule(
+      ReactApplicationContext reactContext,
+      final NativeViewHierarchyManager nativeViewHierarchyManager) {
+    super(reactContext);
     mNodesManager = new NativeAnimatedNodesManager();
     mAnimatedFrameCallback = new GuardedChoreographerFrameCallback(reactContext) {
       @Override
       protected void doFrameGuarded(final long frameTimeNanos) {
-        mAnimatedFrameCallbackEnqueued = false;
 
         ArrayList<UIThreadOperation> operations;
         synchronized (mOperationsCopyLock) {
@@ -65,9 +61,14 @@ package com.facebook.react.uimanager.animation;
             operations.get(i).execute(mNodesManager);
           }
         }
-        mNodesManager.runUpdates(uiImplementation, frameTimeNanos);
 
-        enqueueFrameCallbackIfNeeded();
+        if (mNodesManager.hasActiveAnimations()) {
+          mNodesManager.runUpdates(nativeViewHierarchyManager, frameTimeNanos);
+        }
+
+        Assertions.assertNotNull(mReactChoreographer).postFrameCallback(
+            ReactChoreographer.CallbackType.ANIMATIONS,
+            mAnimatedFrameCallback);
       }
     };
   }
@@ -84,12 +85,18 @@ package com.facebook.react.uimanager.animation;
         }
       }
     }
-    enqueueFrameCallbackIfNeeded();
+  }
+
+  @Override
+  public void initialize() {
+    // Safe to acquire choreographer here, as initialize() is invoked from UI thread.
+    mReactChoreographer = ReactChoreographer.getInstance();
+    getReactApplicationContext().addLifecycleEventListener(this);
   }
 
   @Override
   public void onHostResume() {
-    enqueueFrameCallbackIfNeeded();
+    enqueueFrameCallback();
   }
 
   @Override
@@ -108,19 +115,15 @@ package com.facebook.react.uimanager.animation;
   }
 
   private void clearFrameCallback() {
-    ReactChoreographer.getInstance().removeFrameCallback(
+    Assertions.assertNotNull(mReactChoreographer).removeFrameCallback(
       ReactChoreographer.CallbackType.ANIMATIONS,
       mAnimatedFrameCallback);
   }
 
-  private void enqueueFrameCallbackIfNeeded() {
-    if (!mAnimatedFrameCallbackEnqueued &&
-        (mNodesManager.hasActiveAnimations() || mReadyOperations != null)) {
-      mAnimatedFrameCallbackEnqueued = true;
-      ReactChoreographer.getInstance().postFrameCallback(
-        ReactChoreographer.CallbackType.ANIMATIONS,
-        mAnimatedFrameCallback);
-    }
+  private void enqueueFrameCallback() {
+    Assertions.assertNotNull(mReactChoreographer).postFrameCallback(
+      ReactChoreographer.CallbackType.ANIMATIONS,
+      mAnimatedFrameCallback);
   }
 
   @ReactMethod
