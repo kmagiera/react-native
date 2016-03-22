@@ -10,7 +10,6 @@
 package com.facebook.react.uimanager.animation;
 
 import com.facebook.infer.annotation.Assertions;
-import com.facebook.react.bridge.JavaOnlyMap;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +21,9 @@ import javax.annotation.Nullable;
  */
 /*package*/ abstract class AnimatedNode {
 
+  public static final int INITIAL_BFS_COLOR = 0;
+
   private static final int DEFAULT_ANIMATED_NODE_CHILD_COUNT = 1;
-  /*package*/ static final int INITIAL_BFS_COLOR = 0;
 
   /*package*/ @Nullable List<AnimatedNode> mChildren; /* lazy-initialized when a child is added */
   /*package*/ int mActiveIncomingNodes = 0;
@@ -45,33 +45,22 @@ import javax.annotation.Nullable;
   }
 
   /**
-   * Sub-classes may override this method to provide a custom handler for the event when the
-   * node's parent has been updated.
+   * This method will be run in animation loop only once for each node. It will be executed on a
+   * node only when all the node's parent has already been updated. Therefore it can be used to
+   * calculate node's value as a product of the parent's values.
    *
-   * @param parent a reference to the node's "parent" in animated node graph that has just been
-   *               updated
-   */
-  public void feedDataFromUpdatedParent(AnimatedNode parent) {
-  }
-
-  /**
-   * This method will be run in animation loop once all the node's predecessor nodes have been
-   * visited. This method can be overridden by subclasses to support use-cases when taking the input
-   * from a single "parent" is not sufficient (e.g. addition node).
+   * Parameter {@param lastUpdatedParent} points to the node's parent that have just been updated
+   * and it's update has triggered the current node update. Note that the method may not be called
+   * for the nodes that have been updated by {@code setValue} call form JS. In which case their
+   * state will be updated in a given animation loop, but not as a result of their parent being
+   * updated. So in order to avoid their state being updated twice animation loop will not call
+   * {@link #update} on those nodes. Similarily for the nodes that are directly hooked into
+   * instances of {@link AnimationDriver}.
    *
+   * @param lastUpdatedParent reference to a parent node of this node in animated graph that has
+   *                          just been updated and triggered the update of current node
    * @param frameTimeNanos frame time in nanoseconds provided to the android choreographer callback
    */
-  public void runAnimationStep(long frameTimeNanos) {
+  public void update(AnimatedNode lastUpdatedParent, long frameTimeNanos) {
   }
-
-  /**
-   * This method is called by {@link PropsAnimatedNode} in order to collect map of the properties
-   * that needs to be updated in a view. Some nodes may override this method if they should map to
-   * a more complex value structure than a simple numeric value (e.g. styles node, transform node).
-   *
-   * @param key key of the property which should be used as a key in the output property map
-   * @param propsMap view property map that will be used in the view update. This method should
-   *                 store its value in this map
-   */
-  public abstract void saveInPropMap(String key, JavaOnlyMap propsMap);
 }

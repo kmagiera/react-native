@@ -23,7 +23,6 @@ class FrameBasedAnimationDriver extends AnimationDriver {
   private final double[] mFrames;
   private final double mToValue;
   private double mFromValue;
-  private boolean mHasToValue;
 
   FrameBasedAnimationDriver(ReadableMap config) {
     ReadableArray frames = config.getArray("frames");
@@ -32,13 +31,7 @@ class FrameBasedAnimationDriver extends AnimationDriver {
     for (int i = 0; i < numberOfFrames; i++) {
       mFrames[i] = frames.getDouble(i);
     }
-    if (config.hasKey("toValue")) {
-      mHasToValue = true;
-      mToValue = config.getDouble("toValue");
-    } else {
-      mHasToValue = false;
-      mToValue = Double.NaN;
-    }
+    mToValue = config.getDouble("toValue");
   }
 
   @Override
@@ -61,15 +54,9 @@ class FrameBasedAnimationDriver extends AnimationDriver {
     if (frameIndex >= mFrames.length - 1) {
       // animation has completed, no more frames left
       mHasFinished = true;
-      if (mHasToValue) {
-        nextValue = mToValue;
-      } else {
-        nextValue = mFromValue + mFrames[mFrames.length - 1];
-      }
-    } else if (mHasToValue) {
-      nextValue = mFromValue + mFrames[frameIndex] * (mToValue - mFromValue);
+      nextValue = mToValue;
     } else {
-      nextValue = mFromValue + mFrames[frameIndex];
+      nextValue = mFromValue + mFrames[frameIndex] * (mToValue - mFromValue);
     }
     mAnimatedValue.mValue = nextValue;
   }

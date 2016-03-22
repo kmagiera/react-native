@@ -36,16 +36,16 @@ import java.util.Map;
     mNativeAnimatedNodesManager = nativeAnimatedNodesManager;
   }
 
-  @Override
-  public void saveInPropMap(String key, JavaOnlyMap propsMap) {
-  /* ignore key, style names are flattened */
+  public void collectViewUpdates(JavaOnlyMap propsMap) {
     for (Map.Entry<String, Integer> entry : mPropMapping.entrySet()) {
-      int nodeIndex = entry.getValue();
-      AnimatedNode node = mNativeAnimatedNodesManager.getNodeById(nodeIndex);
-      if (node != null) {
-        node.saveInPropMap(entry.getKey(), propsMap);
-      } else {
+      AnimatedNode node = mNativeAnimatedNodesManager.getNodeById(entry.getValue());
+      if (node == null) {
         throw new IllegalArgumentException("Mapped style node does not exists");
+      } else if (node instanceof ValueAnimatedNode) {
+        propsMap.putDouble(entry.getKey(), ((ValueAnimatedNode) node).mValue);
+      } else {
+        throw new IllegalArgumentException("Unsupported type of node used in property node " +
+          node.getClass());
       }
     }
   }

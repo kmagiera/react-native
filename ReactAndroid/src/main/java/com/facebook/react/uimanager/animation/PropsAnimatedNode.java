@@ -14,6 +14,8 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
 import com.facebook.react.uimanager.ReactStylesDiffMap;
+import com.facebook.react.uimanager.UIImplementation;
+import com.facebook.react.uimanager.UIManagerModule;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.Map;
 /*package*/ class PropsAnimatedNode extends AnimatedNode {
 
   /*package*/ int mConnectedViewTag = -1;
+
   private final NativeAnimatedNodesManager mNativeAnimatedNodesManager;
   private final Map<String, Integer> mPropMapping;
 
@@ -41,20 +44,25 @@ import java.util.Map;
     mNativeAnimatedNodesManager = nativeAnimatedNodesManager;
   }
 
-  public final void updateView(NativeViewHierarchyManager nativeViewHierarchyManager) {
+  public final void updateView(UIImplementation uiImplementation) {
     if (mConnectedViewTag == -1) {
       throw new IllegalStateException("Node has not been attached to a view");
     }
     JavaOnlyMap propsMap = new JavaOnlyMap();
     for (Map.Entry<String, Integer> entry : mPropMapping.entrySet()) {
       AnimatedNode node = mNativeAnimatedNodesManager.getNodeById(entry.getValue());
-      if (node != null) {
-        node.saveInPropMap(entry.getKey(), propsMap);
+      if (node == null) {
+        throw new IllegalArgumentException("Mapped property node does not exists");
+      } else if (node instanceof StyleAnimatedNode) {
+        ((StyleAnimatedNode) node).collectViewUpdates(propsMap);
+      } else if (node instanceof ValueAnimatedNode) {
+        propsMap.putDouble(entry.getKey(), ((ValueAnimatedNode) node).mValue);
       } else {
-        throw new IllegalArgumentException("Mapped style node does not exists");
+        throw new IllegalArgumentException("Unsupported type of node used in property node " +
+            node.getClass());
       }
     }
-    nativeViewHierarchyManager.updateProperties(
+    uiImplementation.synchronouslyUpdateViewOnUIThread(
       mConnectedViewTag,
       new ReactStylesDiffMap(propsMap));
   }

@@ -22,6 +22,7 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.uimanager.GuardedChoreographerFrameCallback;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
 import com.facebook.react.uimanager.ReactChoreographer;
+import com.facebook.react.uimanager.UIImplementation;
 import com.facebook.react.uimanager.UIManagerModule;
 
 import java.util.ArrayList;
@@ -55,8 +56,8 @@ public class NativeAnimatedModule extends ReactContextBaseJavaModule implements
     mReactChoreographer = ReactChoreographer.getInstance();
 
     ReactApplicationContext reactCtx = getReactApplicationContext();
-    final NativeViewHierarchyManager nativeViewHierarchyManager =
-      reactCtx.getNativeModule(UIManagerModule.class).getNativeViewHierarchyManager();
+    final UIImplementation uiImplementation =
+      reactCtx.getNativeModule(UIManagerModule.class).getUIImplementation();
     mAnimatedFrameCallback = new GuardedChoreographerFrameCallback(reactCtx) {
       @Override
       protected void doFrameGuarded(final long frameTimeNanos) {
@@ -74,7 +75,7 @@ public class NativeAnimatedModule extends ReactContextBaseJavaModule implements
         }
 
         if (mNodesManager.hasActiveAnimations()) {
-          mNodesManager.runUpdates(nativeViewHierarchyManager, frameTimeNanos);
+          mNodesManager.runUpdates(uiImplementation, frameTimeNanos);
         }
 
         Assertions.assertNotNull(mReactChoreographer).postFrameCallback(
@@ -118,7 +119,7 @@ public class NativeAnimatedModule extends ReactContextBaseJavaModule implements
 
   @Override
   public void onHostDestroy() {
-    clearFrameCallback();
+    // do nothing
   }
 
   @Override

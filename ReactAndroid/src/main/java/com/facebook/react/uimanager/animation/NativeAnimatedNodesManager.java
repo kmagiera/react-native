@@ -18,6 +18,7 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
+import com.facebook.react.uimanager.UIImplementation;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -177,9 +178,7 @@ import java.util.Queue;
    * sub-graph of *active* nodes. This is done by adding node to the BFS queue only if all its
    * "predecessors" have already been visited.
    */
-  public void runUpdates(
-      NativeViewHierarchyManager nativeViewHierarchyManager,
-      long frameTimeNanos) {
+  public void runUpdates(UIImplementation uiImplementation, long frameTimeNanos) {
     UiThreadUtil.assertOnUiThread();
     int activeNodesCount = 0;
     int updatedNodesCount = 0;
@@ -274,20 +273,19 @@ import java.util.Queue;
     // Run main "update" loop
     while (!nodesQueue.isEmpty()) {
       AnimatedNode nextNode = nodesQueue.poll();
-      nextNode.runAnimationStep(frameTimeNanos);
       if (nextNode instanceof PropsAnimatedNode) {
         // Send property updates to native view manager
-        ((PropsAnimatedNode) nextNode).updateView(nativeViewHierarchyManager);
+        ((PropsAnimatedNode) nextNode).updateView(uiImplementation);
       }
       if (nextNode.mChildren != null) {
         for (int i = 0; i < nextNode.mChildren.size(); i++) {
           AnimatedNode child = nextNode.mChildren.get(i);
-          child.feedDataFromUpdatedParent(nextNode);
           child.mActiveIncomingNodes--;
           if (child.mBFSColor != mAnimatedGraphBFSColor && child.mActiveIncomingNodes == 0) {
             child.mBFSColor = mAnimatedGraphBFSColor;
             updatedNodesCount++;
             nodesQueue.add(child);
+            child.update(nextNode, frameTimeNanos);
           }
         }
       }

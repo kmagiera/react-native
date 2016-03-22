@@ -84,11 +84,11 @@ public class UIManagerModule extends ReactContextBaseJavaModule implements
   }
 
   /**
-   * This method gives an access to the underlying native view hierarchy manager. Note that all the
-   * operations executed on that object should be run in the UI thread. Use with caution
+   * This method gives an access to the {@link UIImplementation} object that can be used to execute
+   * operations on the view hierarchy.
    */
-  public NativeViewHierarchyManager getNativeViewHierarchyManager() {
-    return mUIImplementation.getUIViewOperationQueue().getNativeViewHierarchyManager();
+  public UIImplementation getUIImplementation() {
+    return mUIImplementation;
   }
 
   @Override
