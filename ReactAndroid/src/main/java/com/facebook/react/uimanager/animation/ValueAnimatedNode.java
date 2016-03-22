@@ -9,6 +9,7 @@
 
 package com.facebook.react.uimanager.animation;
 
+import com.facebook.react.bridge.JavaOnlyMap;
 import com.facebook.react.bridge.ReadableMap;
 
 /**
@@ -16,7 +17,15 @@ import com.facebook.react.bridge.ReadableMap;
  * library.
  */
 class ValueAnimatedNode extends AnimatedNode {
+
+  /*package*/ double mValue = Double.NaN;
+
   ValueAnimatedNode(ReadableMap config) {
     mValue = config.getDouble("value");
+  }
+
+  @Override
+  public void saveInPropMap(String key, JavaOnlyMap propsMap) {
+    propsMap.putDouble(key, mValue);
   }
 }

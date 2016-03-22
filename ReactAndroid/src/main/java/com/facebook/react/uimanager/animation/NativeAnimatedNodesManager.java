@@ -31,7 +31,6 @@ import java.util.Queue;
 
   private final SparseArray<AnimatedNode> mAnimatedNodes = new SparseArray<>();
   private final ArrayList<AnimationDriver> mActiveAnimations = new ArrayList<>();
-  private final ArrayList<PropsAnimatedNode.UpdateViewData> mEnqueuedUpdates = new ArrayList<>();
   private final ArrayList<AnimatedNode> mUpdatedNodes = new ArrayList<>();
   private int mAnimatedGraphDFSColor = 0;
 
@@ -70,11 +69,11 @@ import java.util.Queue;
 
   public void setAnimatedNodeValue(int tag, double value) {
     AnimatedNode node = mAnimatedNodes.get(tag);
-    if (node == null) {
+    if (node == null || !(node instanceof ValueAnimatedNode)) {
       throw new JSApplicationIllegalArgumentException("Animated node with tag " + tag +
-        " does not exists");
+        " does not exists or is not a 'value' node");
     }
-    node.mValue = value;
+    ((ValueAnimatedNode) node).mValue = value;
     mUpdatedNodes.add(node);
   }
 
@@ -143,7 +142,7 @@ import java.util.Queue;
     }
     PropsAnimatedNode propsAnimatedNode = (PropsAnimatedNode) node;
     if (propsAnimatedNode.mConnectedViewTag != -1) {
-      throw new JSApplicationIllegalArgumentException("ANimated node " + animatedNodeTag + " is " +
+      throw new JSApplicationIllegalArgumentException("Animated node " + animatedNodeTag + " is " +
         "already attached to a view");
     }
     propsAnimatedNode.mConnectedViewTag = viewTag;
@@ -160,9 +159,11 @@ import java.util.Queue;
         "of type " + PropsAnimatedNode.class.getName());
     }
     PropsAnimatedNode propsAnimatedNode = (PropsAnimatedNode) node;
-    if (propsAnimatedNode.mConnectedViewTag == viewTag) {
-      propsAnimatedNode.mConnectedViewTag = -1;
+    if (propsAnimatedNode.mConnectedViewTag != viewTag) {
+      throw new JSApplicationIllegalArgumentException("Attempting to disconnect view that has " +
+        "not been connected with the given animated node");
     }
+    propsAnimatedNode.mConnectedViewTag = -1;
   }
 
   /**
@@ -170,20 +171,24 @@ import java.util.Queue;
    * {@code mAnimatedGraphDFSColor} to mark nodes as visited in each of the DFSes which saves
    * additional loops for clearing "visited" states.
    *
-   * First DFS starts with nodes that are in {@code mUpdatedNodes} or directly attached to an active
+   * First DFS starts with nodes that are in {@code mUpdatedNodes} (that is, their value have been
+   * modified from JS in the last batch of JS operations) or directly attached to an active
    * animation (hence linked to objects from {@code mActiveAnimations}). In that step we calculate
    * an attribute {@code mActiveIncomingNodes}. The second DFS runs in topological order over the
    * sub-graph of *active* nodes. This is done by adding node to the DFS queue only if all its
    * "predecessors" have already been visited.
    */
-  private void runAnimationStep(long frameTimeNanos) {
+  public void runUpdates(
+      NativeViewHierarchyManager nativeViewHierarchyManager,
+      long frameTimeNanos) {
+    UiThreadUtil.assertOnUiThread();
     int activeNodesCount = 0;
     int updatedNodesCount = 0;
     boolean hasFinishedAnimations = false;
 
     // STEP 1.
     // DFS over graph of nodes starting from ones from `mUpdatedNodes` and ones that are attached to
-    // active animations (from `mActiveANimations`. Update `mIncomingNodes` attribute for each node
+    // active animations (from `mActiveAnimations)`. Update `mIncomingNodes` attribute for each node
     // during that DFS. Store number of visited nodes in `activeNodesCount`. We "execute" active
     // animations as a part of this step.
 
@@ -234,14 +239,13 @@ import java.util.Queue;
     }
 
     // STEP 2
-    // DFS over the graph of active nodes in topological order -> visit node only when its all
+    // DFS over the graph of active nodes in topological order -> visit node only when all its
     // "predecessors" in the graph have already been visited. It is important to visit nodes in that
     // order as they may often use values of their predecessors in order to calculate "next state"
     // of their own. We start by determining the starting set of nodes by looking for nodes with
     // `mActiveIncomingNodes = 0` (those can only be the ones that we start DFS in the previous
     // step). We store number of visited nodes in this step in `updatedNodesCount`
 
-    nodesQueue.clear();
     mAnimatedGraphDFSColor++;
     if (mAnimatedGraphDFSColor == AnimatedNode.INITIAL_DFS_COLOR) {
       // see reasoning for this check a few lines above
@@ -269,12 +273,12 @@ import java.util.Queue;
     }
 
     // Run main "update" loop
-    ArrayList<PropsAnimatedNode> updatedPropNodes = new ArrayList<>();
     while (!nodesQueue.isEmpty()) {
       AnimatedNode nextNode = nodesQueue.poll();
       nextNode.runAnimationStep(frameTimeNanos);
       if (nextNode instanceof PropsAnimatedNode) {
-        updatedPropNodes.add((PropsAnimatedNode) nextNode);
+        // Send property updates to native view manager
+        ((PropsAnimatedNode) nextNode).updateView(nativeViewHierarchyManager);
       }
       if (nextNode.mChildren != null) {
         for (int i = 0; i < nextNode.mChildren.size(); i++) {
@@ -299,14 +303,6 @@ import java.util.Queue;
         + activeNodesCount + " but toposort visited only " + updatedNodesCount);
     }
 
-    // Collect UI updates
-    for (int i = 0; i < updatedPropNodes.size(); i++) {
-      PropsAnimatedNode propNode = updatedPropNodes.get(i);
-      PropsAnimatedNode.UpdateViewData data = propNode.createUpdateViewData();
-      if (data.mViewTag > 0) {
-        mEnqueuedUpdates.add(propNode.createUpdateViewData());
-      }
-    }
 
     // Cleanup finished animations. Iterate over the array of animations and override ones that has
     // finished, then resize `mActiveAnimations`.
@@ -326,19 +322,5 @@ import java.util.Queue;
         mActiveAnimations.remove(i);
       }
     }
-  }
-
-  public void runUpdates(
-      NativeViewHierarchyManager nativeViewHierarchyManager,
-      long frameTimeNanos) {
-    UiThreadUtil.assertOnUiThread();
-    runAnimationStep(frameTimeNanos);
-    for (int i = 0; i < mEnqueuedUpdates.size(); i++) {
-      PropsAnimatedNode.UpdateViewData data = mEnqueuedUpdates.get(i);
-      nativeViewHierarchyManager.updateProperties(
-          data.mViewTag,
-          new ReactStylesDiffMap(data.mProps));
-    }
-    mEnqueuedUpdates.clear();
   }
 }

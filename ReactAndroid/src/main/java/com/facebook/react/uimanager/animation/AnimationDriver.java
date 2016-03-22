@@ -25,5 +25,5 @@ import com.facebook.react.bridge.Callback;
    * This method gets called in the main animation loop with a frame time passed down from the
    * android choreographer callback.
    */
-  public abstract boolean runAnimationStep(long frameTimeNanos);
+  public abstract void runAnimationStep(long frameTimeNanos);
 }

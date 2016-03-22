@@ -42,9 +42,7 @@ public class NativeAnimatedModule extends ReactContextBaseJavaModule implements
   private ArrayList<UIThreadOperation> mOperations = new ArrayList<>();
   private volatile @Nullable ArrayList<UIThreadOperation> mReadyOperations = null;
 
-  /*
-   * Nodes manager will only be accessed from the UI Thread
-   */
+  // Nodes manager will only be accessed from the UI Thread
   private final NativeAnimatedNodesManager mNodesManager = new NativeAnimatedNodesManager();
 
   public NativeAnimatedModule(ReactApplicationContext reactContext) {
@@ -80,7 +78,7 @@ public class NativeAnimatedModule extends ReactContextBaseJavaModule implements
         }
 
         Assertions.assertNotNull(mReactChoreographer).postFrameCallback(
-          ReactChoreographer.CallbackType.ANIMATIONS,
+          ReactChoreographer.CallbackType.NATIVE_ANIMATED_MODULE,
           mAnimatedFrameCallback);
       }
     };
@@ -93,7 +91,7 @@ public class NativeAnimatedModule extends ReactContextBaseJavaModule implements
     // from the UIManagerModule) doesn't matter as we only enqueue operations for the UI thread to
     // be executed from here. Thanks to ReactChoreographer all the operations from here are going
     // to be executed *after* all the operations enqueued by UIManager as the callback type that we
-    // use for ReactChoreographer (CallbackType.ANIMATIONS) is run after callbacks that UIManager
+    // use for ReactChoreographer (CallbackType.NATIVE_ANIMATED_MODULE) is run after callbacks that UIManager
     // use
     ArrayList<UIThreadOperation> operations = mOperations.isEmpty() ? null : mOperations;
     if (operations != null) {
@@ -130,13 +128,13 @@ public class NativeAnimatedModule extends ReactContextBaseJavaModule implements
 
   private void clearFrameCallback() {
     Assertions.assertNotNull(mReactChoreographer).removeFrameCallback(
-      ReactChoreographer.CallbackType.ANIMATIONS,
+      ReactChoreographer.CallbackType.NATIVE_ANIMATED_MODULE,
       mAnimatedFrameCallback);
   }
 
   private void enqueueFrameCallback() {
     Assertions.assertNotNull(mReactChoreographer).postFrameCallback(
-      ReactChoreographer.CallbackType.ANIMATIONS,
+      ReactChoreographer.CallbackType.NATIVE_ANIMATED_MODULE,
       mAnimatedFrameCallback);
   }
 

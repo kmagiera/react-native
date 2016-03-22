@@ -150,7 +150,8 @@ class Animation {
       this.__nativeTag,
       animatedValue.__getNativeTag(),
       this._getNativeAnimationConfig(),
-      this.__debouncedOnEnd.bind(this));
+      this.__debouncedOnEnd.bind(this)
+    );
   }
 }
 
@@ -282,13 +283,13 @@ class TimingAnimation extends Animation {
 
   _getNativeAnimationConfig(): any {
     var frameDuration = 1000.0 / 60.0;
-    var mults = [];
+    var frames = [];
     for (var dt = 0.0; dt <= this._duration; dt += frameDuration) {
-      mults.push(this._easing(dt / this._duration));
+      frames.push(this._easing(dt / this._duration));
     }
     return {
       type: 'frames',
-      frames: mults,
+      frames,
       toValue: this._toValue,
     };
   }

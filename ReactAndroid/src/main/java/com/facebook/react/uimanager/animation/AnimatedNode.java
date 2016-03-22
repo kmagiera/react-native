@@ -20,7 +20,7 @@ import javax.annotation.Nullable;
 /**
  * Base class for all Animated.js library node types that can be created on the "native" side.
  */
-/*package*/ class AnimatedNode {
+/*package*/ abstract class AnimatedNode {
 
   private static final int DEFAULT_ANIMATED_NODE_CHILD_COUNT = 1;
   /*package*/ static final int INITIAL_DFS_COLOR = 0;
@@ -28,9 +28,7 @@ import javax.annotation.Nullable;
   /*package*/ @Nullable List<AnimatedNode> mChildren; /* lazy-initialized when a child is added */
   /*package*/ int mActiveIncomingNodes = 0;
   /*package*/ int mDFSColor = INITIAL_DFS_COLOR;
-  public int mTag = -1;
-
-  double mValue = Double.NaN;
+  /*package*/ int mTag = -1;
 
   public void addChild(AnimatedNode child) {
     if (mChildren == null) {
@@ -75,7 +73,5 @@ import javax.annotation.Nullable;
    * @param propsMap view property map that will be used in the view update. This method should
    *                 store its value in this map
    */
-  public void saveInPropMap(String key, JavaOnlyMap propsMap) {
-    propsMap.putDouble(key, mValue);
-  }
+  public abstract void saveInPropMap(String key, JavaOnlyMap propsMap);
 }

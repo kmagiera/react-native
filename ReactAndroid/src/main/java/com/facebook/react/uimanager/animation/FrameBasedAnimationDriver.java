@@ -41,7 +41,8 @@ class FrameBasedAnimationDriver extends AnimationDriver {
     }
   }
 
-  public boolean runAnimationStep(long frameTimeNanos) {
+  @Override
+  public void runAnimationStep(long frameTimeNanos) {
     if (mStartFrameTimeNanos < 0) {
       mStartFrameTimeNanos = frameTimeNanos;
       mFromValue = mAnimatedValue.mValue;
@@ -52,25 +53,24 @@ class FrameBasedAnimationDriver extends AnimationDriver {
     int frameIndex = (int) (timeFromStartNanos / 1000000L * 60L / 1000L);
     if (frameIndex < 0) {
       throw new IllegalStateException("Calculated frame index should never be lower than 0");
-    } else if (!mHasFinished) {
-      final double nextValue;
-      if (frameIndex >= mFrames.length - 1) {
-        // animation has completed, no more frames left
-        mHasFinished = true;
-        if (mHasToValue) {
-          nextValue = mToValue;
-        } else {
-          nextValue = mFromValue + mFrames[mFrames.length - 1];
-        }
-      } else if (mHasToValue) {
-        nextValue = mFromValue + mFrames[frameIndex] * (mToValue - mFromValue);
-      } else {
-        nextValue = mFromValue + mFrames[frameIndex];
-      }
-      boolean updated = mAnimatedValue.mValue != nextValue;
-      mAnimatedValue.mValue = nextValue;
-      return updated;
+    } else if (mHasFinished) {
+      // nothing to do here
+      return;
     }
-    return false;
+    double nextValue;
+    if (frameIndex >= mFrames.length - 1) {
+      // animation has completed, no more frames left
+      mHasFinished = true;
+      if (mHasToValue) {
+        nextValue = mToValue;
+      } else {
+        nextValue = mFromValue + mFrames[mFrames.length - 1];
+      }
+    } else if (mHasToValue) {
+      nextValue = mFromValue + mFrames[frameIndex] * (mToValue - mFromValue);
+    } else {
+      nextValue = mFromValue + mFrames[frameIndex];
+    }
+    mAnimatedValue.mValue = nextValue;
   }
 }

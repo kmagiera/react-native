@@ -40,7 +40,7 @@ public class ReactChoreographer {
     /**
      * For use by {@link com.facebook.react.uimanager.animation.NativeAnimatedModule}
      */
-    ANIMATIONS(2),
+    NATIVE_ANIMATED_MODULE(2),
 
     /**
      * Events that make JS do things.

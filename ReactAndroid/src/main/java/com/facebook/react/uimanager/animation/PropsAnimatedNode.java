@@ -12,6 +12,8 @@ package com.facebook.react.uimanager.animation;
 import com.facebook.react.bridge.JavaOnlyMap;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.uimanager.NativeViewHierarchyManager;
+import com.facebook.react.uimanager.ReactStylesDiffMap;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,16 +24,6 @@ import java.util.Map;
  * a map of updated properties, which can be then passed down to the view.
  */
 /*package*/ class PropsAnimatedNode extends AnimatedNode {
-
-  public static class UpdateViewData {
-    int mViewTag;
-    ReadableMap mProps;
-
-    public UpdateViewData(int tag, ReadableMap props) {
-      mViewTag = tag;
-      mProps = props;
-    }
-  }
 
   /*package*/ int mConnectedViewTag = -1;
   private final NativeAnimatedNodesManager mNativeAnimatedNodesManager;
@@ -49,18 +41,21 @@ import java.util.Map;
     mNativeAnimatedNodesManager = nativeAnimatedNodesManager;
   }
 
-  public UpdateViewData createUpdateViewData() {
+  public final void updateView(NativeViewHierarchyManager nativeViewHierarchyManager) {
+    if (mConnectedViewTag == -1) {
+      throw new IllegalStateException("Node has not been attached to a view");
+    }
     JavaOnlyMap propsMap = new JavaOnlyMap();
-    for (String propKey : mPropMapping.keySet()) {
-      // TODO: use entryset = optimize
-      int nodeIndex = mPropMapping.get(propKey);
-      AnimatedNode node = mNativeAnimatedNodesManager.getNodeById(nodeIndex);
+    for (Map.Entry<String, Integer> entry : mPropMapping.entrySet()) {
+      AnimatedNode node = mNativeAnimatedNodesManager.getNodeById(entry.getValue());
       if (node != null) {
-        node.saveInPropMap(propKey, propsMap);
+        node.saveInPropMap(entry.getKey(), propsMap);
       } else {
         throw new IllegalArgumentException("Mapped style node does not exists");
       }
     }
-    return new UpdateViewData(mConnectedViewTag, propsMap);
+    nativeViewHierarchyManager.updateProperties(
+      mConnectedViewTag,
+      new ReactStylesDiffMap(propsMap));
   }
 }
