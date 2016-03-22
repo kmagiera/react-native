@@ -18,7 +18,6 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
-import com.facebook.react.uimanager.ReactStylesDiffMap;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -32,7 +31,7 @@ import java.util.Queue;
   private final SparseArray<AnimatedNode> mAnimatedNodes = new SparseArray<>();
   private final ArrayList<AnimationDriver> mActiveAnimations = new ArrayList<>();
   private final ArrayList<AnimatedNode> mUpdatedNodes = new ArrayList<>();
-  private int mAnimatedGraphDFSColor = 0;
+  private int mAnimatedGraphBFSColor = 0;
 
   /*package*/ AnimatedNode getNodeById(int id) {
     return mAnimatedNodes.get(id);
@@ -167,15 +166,15 @@ import java.util.Queue;
   }
 
   /**
-   * Animation loop performs two DFSes over the graph of animated nodes. We use incremented
-   * {@code mAnimatedGraphDFSColor} to mark nodes as visited in each of the DFSes which saves
+   * Animation loop performs two BFSes over the graph of animated nodes. We use incremented
+   * {@code mAnimatedGraphBFSColor} to mark nodes as visited in each of the BFSes which saves
    * additional loops for clearing "visited" states.
    *
-   * First DFS starts with nodes that are in {@code mUpdatedNodes} (that is, their value have been
+   * First BFS starts with nodes that are in {@code mUpdatedNodes} (that is, their value have been
    * modified from JS in the last batch of JS operations) or directly attached to an active
    * animation (hence linked to objects from {@code mActiveAnimations}). In that step we calculate
-   * an attribute {@code mActiveIncomingNodes}. The second DFS runs in topological order over the
-   * sub-graph of *active* nodes. This is done by adding node to the DFS queue only if all its
+   * an attribute {@code mActiveIncomingNodes}. The second BFS runs in topological order over the
+   * sub-graph of *active* nodes. This is done by adding node to the BFS queue only if all its
    * "predecessors" have already been visited.
    */
   public void runUpdates(
@@ -187,23 +186,23 @@ import java.util.Queue;
     boolean hasFinishedAnimations = false;
 
     // STEP 1.
-    // DFS over graph of nodes starting from ones from `mUpdatedNodes` and ones that are attached to
+    // BFS over graph of nodes starting from ones from `mUpdatedNodes` and ones that are attached to
     // active animations (from `mActiveAnimations)`. Update `mIncomingNodes` attribute for each node
-    // during that DFS. Store number of visited nodes in `activeNodesCount`. We "execute" active
+    // during that BFS. Store number of visited nodes in `activeNodesCount`. We "execute" active
     // animations as a part of this step.
 
-    mAnimatedGraphDFSColor++; /* use new color */
-    if (mAnimatedGraphDFSColor == AnimatedNode.INITIAL_DFS_COLOR) {
-      // value "0" is used as an initial color for a new node, using it in DFS may cause some nodes
+    mAnimatedGraphBFSColor++; /* use new color */
+    if (mAnimatedGraphBFSColor == AnimatedNode.INITIAL_BFS_COLOR) {
+      // value "0" is used as an initial color for a new node, using it in BFS may cause some nodes
       // to be skipped.
-      mAnimatedGraphDFSColor++;
+      mAnimatedGraphBFSColor++;
     }
 
     Queue<AnimatedNode> nodesQueue = new ArrayDeque<>();
     for (int i = 0; i < mUpdatedNodes.size(); i++) {
       AnimatedNode node = mUpdatedNodes.get(i);
-      if (node.mDFSColor != mAnimatedGraphDFSColor) {
-        node.mDFSColor = mAnimatedGraphDFSColor;
+      if (node.mBFSColor != mAnimatedGraphBFSColor) {
+        node.mBFSColor = mAnimatedGraphBFSColor;
         activeNodesCount++;
         nodesQueue.add(node);
       }
@@ -213,8 +212,8 @@ import java.util.Queue;
       AnimationDriver animation = mActiveAnimations.get(i);
       animation.runAnimationStep(frameTimeNanos);
       AnimatedNode valueNode = animation.mAnimatedValue;
-      if (valueNode.mDFSColor != mAnimatedGraphDFSColor) {
-        valueNode.mDFSColor = mAnimatedGraphDFSColor;
+      if (valueNode.mBFSColor != mAnimatedGraphBFSColor) {
+        valueNode.mBFSColor = mAnimatedGraphBFSColor;
         activeNodesCount++;
         nodesQueue.add(valueNode);
       }
@@ -229,8 +228,8 @@ import java.util.Queue;
         for (int i = 0; i < nextNode.mChildren.size(); i++) {
           AnimatedNode child = nextNode.mChildren.get(i);
           child.mActiveIncomingNodes++;
-          if (child.mDFSColor != mAnimatedGraphDFSColor) {
-            child.mDFSColor = mAnimatedGraphDFSColor;
+          if (child.mBFSColor != mAnimatedGraphBFSColor) {
+            child.mBFSColor = mAnimatedGraphBFSColor;
             activeNodesCount++;
             nodesQueue.add(child);
           }
@@ -239,25 +238,25 @@ import java.util.Queue;
     }
 
     // STEP 2
-    // DFS over the graph of active nodes in topological order -> visit node only when all its
+    // BFS over the graph of active nodes in topological order -> visit node only when all its
     // "predecessors" in the graph have already been visited. It is important to visit nodes in that
     // order as they may often use values of their predecessors in order to calculate "next state"
     // of their own. We start by determining the starting set of nodes by looking for nodes with
-    // `mActiveIncomingNodes = 0` (those can only be the ones that we start DFS in the previous
+    // `mActiveIncomingNodes = 0` (those can only be the ones that we start BFS in the previous
     // step). We store number of visited nodes in this step in `updatedNodesCount`
 
-    mAnimatedGraphDFSColor++;
-    if (mAnimatedGraphDFSColor == AnimatedNode.INITIAL_DFS_COLOR) {
+    mAnimatedGraphBFSColor++;
+    if (mAnimatedGraphBFSColor == AnimatedNode.INITIAL_BFS_COLOR) {
       // see reasoning for this check a few lines above
-      mAnimatedGraphDFSColor++;
+      mAnimatedGraphBFSColor++;
     }
 
     // find nodes with zero "incoming nodes", those can be either nodes from `mUpdatedNodes` or
     // ones connected to active animations
     for (int i = 0; i < mUpdatedNodes.size(); i++) {
       AnimatedNode node = mUpdatedNodes.get(i);
-      if (node.mActiveIncomingNodes == 0 && node.mDFSColor != mAnimatedGraphDFSColor) {
-        node.mDFSColor = mAnimatedGraphDFSColor;
+      if (node.mActiveIncomingNodes == 0 && node.mBFSColor != mAnimatedGraphBFSColor) {
+        node.mBFSColor = mAnimatedGraphBFSColor;
         updatedNodesCount++;
         nodesQueue.add(node);
       }
@@ -265,8 +264,8 @@ import java.util.Queue;
     for (int i = 0; i < mActiveAnimations.size(); i++) {
       AnimationDriver animation = mActiveAnimations.get(i);
       AnimatedNode valueNode = animation.mAnimatedValue;
-      if (valueNode.mActiveIncomingNodes == 0 && valueNode.mDFSColor != mAnimatedGraphDFSColor) {
-        valueNode.mDFSColor = mAnimatedGraphDFSColor;
+      if (valueNode.mActiveIncomingNodes == 0 && valueNode.mBFSColor != mAnimatedGraphBFSColor) {
+        valueNode.mBFSColor = mAnimatedGraphBFSColor;
         updatedNodesCount++;
         nodesQueue.add(valueNode);
       }
@@ -285,8 +284,8 @@ import java.util.Queue;
           AnimatedNode child = nextNode.mChildren.get(i);
           child.feedDataFromUpdatedParent(nextNode);
           child.mActiveIncomingNodes--;
-          if (child.mDFSColor != mAnimatedGraphDFSColor && child.mActiveIncomingNodes == 0) {
-            child.mDFSColor = mAnimatedGraphDFSColor;
+          if (child.mBFSColor != mAnimatedGraphBFSColor && child.mActiveIncomingNodes == 0) {
+            child.mBFSColor = mAnimatedGraphBFSColor;
             updatedNodesCount++;
             nodesQueue.add(child);
           }

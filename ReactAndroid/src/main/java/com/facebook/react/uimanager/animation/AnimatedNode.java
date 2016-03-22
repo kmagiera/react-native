@@ -23,11 +23,11 @@ import javax.annotation.Nullable;
 /*package*/ abstract class AnimatedNode {
 
   private static final int DEFAULT_ANIMATED_NODE_CHILD_COUNT = 1;
-  /*package*/ static final int INITIAL_DFS_COLOR = 0;
+  /*package*/ static final int INITIAL_BFS_COLOR = 0;
 
   /*package*/ @Nullable List<AnimatedNode> mChildren; /* lazy-initialized when a child is added */
   /*package*/ int mActiveIncomingNodes = 0;
-  /*package*/ int mDFSColor = INITIAL_DFS_COLOR;
+  /*package*/ int mBFSColor = INITIAL_BFS_COLOR;
   /*package*/ int mTag = -1;
 
   public void addChild(AnimatedNode child) {
