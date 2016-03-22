@@ -18,7 +18,7 @@ var React = require('React');
 var Set = require('Set');
 var SpringConfig = require('SpringConfig');
 var ViewStylePropTypes = require('ViewStylePropTypes');
-var NativeAnimatedModule = require('NativeModules').NativeAnimatedModule;
+var NativeAnimatedHelper = require('NativeAnimatedHelper');
 
 var findNodeHandle = require('findNodeHandle');
 var flattenStyle = require('flattenStyle');
@@ -30,47 +30,11 @@ import type { InterpolationConfigType } from 'Interpolation';
 type EndResult = {finished: bool};
 type EndCallback = (result: EndResult) => void;
 
-var __nativeAnimatedNodeTagCount = 1; /* used for animated nodes */
-var __nativeAnimationTagCount = 1; /* used for started animations */
-
 function assertNativeAnimatedModule(): void {
   invariant(NativeAnimatedModule, 'Native animated module is not available');
 }
 
-var NativeAnimatedAPI = {
-  createAnimatedNode: function(tag: number, config: Object): void {
-    assertNativeAnimatedModule();
-    NativeAnimatedModule.createAnimatedNode(tag, config);
-  },
-  connectAnimatedNodes: function(parentTag: number, childTag: number): void {
-    assertNativeAnimatedModule();
-    NativeAnimatedModule.connectAnimatedNodes(parentTag, childTag);
-  },
-  disconnectAnimatedNodes: function(parentTag: number, childTag: number): void {
-    assertNativeAnimatedModule();
-    NativeAnimatedModule.disconnectAnimatedNodes(parentTag, childTag);
-  },
-  startAnimatingNode: function(animationTag: number, nodeTag: number, config: Object, endCallback: EndCallback) {
-    assertNativeAnimatedModule();
-    NativeAnimatedModule.startAnimatingNode(nodeTag, config, endCallback);
-  },
-  setAnimatedNodeValue: function(nodeTag: number, value: number): void {
-    assertNativeAnimatedModule();
-    NativeAnimatedModule.setAnimatedNodeValue(nodeTag, value);
-  },
-  connectAnimatedNodeToView: function(nodeTag: number, viewTag: number): void {
-    assertNativeAnimatedModule();
-    NativeAnimatedModule.connectAnimatedNodeToView(nodeTag, viewTag);
-  },
-  disconnectAnimatedNodeFromView: function(nodeTag: number, viewTag: number): void {
-    assertNativeAnimatedModule();
-    NativeAnimatedModule.disconnectAnimatedNodeFromView(nodeTag, viewTag);
-  },
-  dropAnimatedNode: function(tag: number): void {
-    assertNativeAnimatedModule();
-    NativeAnimatedModule.dropAnimatedNode(tag);
-  },
-};
+var NativeAnimatedAPI = NativeAnimatedHelper.API;
 
 // Note(vjeux): this would be better as an interface but flow doesn't
 // support them yet
@@ -100,7 +64,7 @@ class Animated {
     invariant(NativeAnimatedModule, 'Native animated module is not available');
     invariant(this.__isNative, 'Attempt to get native tag from node not marked as "native"');
     if (this.__nativeTag == null) {
-      var nativeTag: number = __nativeAnimatedNodeTagCount++;
+      var nativeTag: number = NativeAnimatedHelper.generateNewNodeTag();
       NativeAnimatedAPI.createAnimatedNode(nativeTag, this.__getNativeConfig());
       this.__nativeTag = nativeTag;
     }
@@ -145,7 +109,7 @@ class Animation {
   }
   __startNativeAnimation(animatedValue: AnimatedValue): void {
     animatedValue.__makeNative();
-    this.__nativeTag = __nativeAnimationTagCount++;
+    this.__nativeTag = NativeAnimatedHelper.generateNewAnimationTag();
     NativeAnimatedAPI.startAnimatingNode(
       this.__nativeTag,
       animatedValue.__getNativeTag(),
@@ -1385,9 +1349,14 @@ function createAnimatedComponent(Component: any): any {
       // forceUpdate.
       var callback = () => {
         if (this.refs[refName].setNativeProps) {
-          var value = this._propsAnimated.__getAnimatedValue();
-          if (!value.__isNative) {
-            this.refs[refName].setNativeProps(value);
+          if (!this._propsAnimated.__isNative) {
+            this.refs[refName].setNativeProps(
+              this._propsAnimated.__getAnimatedValue()
+            );
+          } else {
+            throw new Error('Attempting to run JS driven animation on animated '
+              + 'node that has been moved to "native" earlier by starting an '
+              + 'animation with `useNativeDriver: true`');
           }
         } else {
           this.forceUpdate();

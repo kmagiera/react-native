@@ -1,0 +1,93 @@
+/**
+ * Copyright (c) 2015-present, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @providesModule NativeAnimatedHelper
+ * @flow
+ */
+'use strict';
+
+var NativeAnimatedModule = require('NativeModules').NativeAnimatedModule;
+
+var __nativeAnimatedNodeTagCount = 1; /* used for animated nodes */
+var __nativeAnimationTagCount = 1; /* used for started animations */
+
+type EndResult = {finished: bool};
+type EndCallback = (result: EndResult) => void;
+
+/**
+ * Simple wrappers around NativeANimatedModule to provide flow and autocmplete support for
+ * the native module methods
+ */
+var API = {
+  createAnimatedNode: function(tag: number, config: Object): void {
+    assertNativeAnimatedModule();
+    NativeAnimatedModule.createAnimatedNode(tag, config);
+  },
+  connectAnimatedNodes: function(parentTag: number, childTag: number): void {
+    assertNativeAnimatedModule();
+    NativeAnimatedModule.connectAnimatedNodes(parentTag, childTag);
+  },
+  disconnectAnimatedNodes: function(parentTag: number, childTag: number): void {
+    assertNativeAnimatedModule();
+    NativeAnimatedModule.disconnectAnimatedNodes(parentTag, childTag);
+  },
+  startAnimatingNode: function(animationTag: number, nodeTag: number, config: Object, endCallback: EndCallback) {
+    assertNativeAnimatedModule();
+    NativeAnimatedModule.startAnimatingNode(nodeTag, config, endCallback);
+  },
+  setAnimatedNodeValue: function(nodeTag: number, value: number): void {
+    assertNativeAnimatedModule();
+    NativeAnimatedModule.setAnimatedNodeValue(nodeTag, value);
+  },
+  connectAnimatedNodeToView: function(nodeTag: number, viewTag: number): void {
+    assertNativeAnimatedModule();
+    NativeAnimatedModule.connectAnimatedNodeToView(nodeTag, viewTag);
+  },
+  disconnectAnimatedNodeFromView: function(nodeTag: number, viewTag: number): void {
+    assertNativeAnimatedModule();
+    NativeAnimatedModule.disconnectAnimatedNodeFromView(nodeTag, viewTag);
+  },
+  dropAnimatedNode: function(tag: number): void {
+    assertNativeAnimatedModule();
+    NativeAnimatedModule.dropAnimatedNode(tag);
+  },
+};
+
+/**
+ * Properties allowed by the native animated implementation.
+ *
+ * In general native animated implementation should support any numeric property that doesn't need
+ * to be updated through the shadow view hierarchy (all non-layout properties). This list is limited
+ * to the properties that will perform best when animated off the JS thread.
+ */
+var PROPS_WHITELIST = {
+  style: {
+    opacity: true,
+
+    /* legacy android transform properties */
+    scaleX: true,
+    scaleY: true,
+    rotation: true,
+    translateX: true,
+    translateY: true,
+  },
+}
+
+function generateNewNodeTag() {
+  return __nativeAnimatedNodeTagCount++;
+}
+
+function generateNewAnimationTag() {
+  return __nativeAnimationTagCount++;
+}
+
+module.exports = {
+  API,
+  generateNewNodeTag,
+  generateNewAnimationTag,
+};
