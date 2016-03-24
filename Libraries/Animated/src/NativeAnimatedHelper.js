@@ -74,6 +74,7 @@ var API = {
 var PROPS_WHITELIST = {
   style: {
     opacity: true,
+    transform: true,
 
     /* legacy android transform properties */
     scaleX: true,
@@ -99,6 +100,79 @@ function validateStyles(styles: Object): void {
       throw new Error(`Style property '${key}' is not supported by native animated module`);
     }
   }
+}
+
+function validateTransform(transforms: Array<Object>, isAnimated: (p: any) => bool): void {
+  var animated = {};
+  var statics = {
+    rotate: 0,
+    rotateX: 0,
+    rotateY: 0,
+    scaleX: 1,
+    scaleY: 1,
+    translateX: 0,
+    translateY: 0,
+  };
+  var order = 0;
+  var usedKeys = {};
+  transforms.forEach(transform => {
+    for (var key in transform) {
+      var value = transform[key];
+      var isValueAnimated = isAnimated(value);
+      var output = isValueAnimated ? animated : statics;
+      value = isValueAnimated ? value.__getNativeTag() : value;
+      if (key in usedKeys) {
+        throw new Error('Native animated transform doesn\'t support duplicated transform entries');
+      }
+      usedKeys[key] = 1;
+      switch (key) {
+        case 'translateX':
+        case 'translateY':
+          invariant(order == 0, 'Illegal native animated transform, translate should go first');
+          output[key] = value;
+          break;
+        case 'translate':
+          invariant(order == 0, 'Illegal native animated transform, translate should go first');
+          order = 1;
+          output['translateX'] = output['translateY'] = value;
+          break;
+        case 'rotate':
+          invariant(order < 2, 'Illegal native animated transform, rotate should go after translate');
+          order = 2;
+          output[key] = value;
+          break;
+        case 'rotateX':
+          invariant(order < 3, 'Illegal native animated transform, rotateX should go after translate and rotate');
+          order = 3;
+          output[key] = value;
+          break;
+        case 'rotateY':
+          invariant(order < 4, 'Illegal native animated transform, rotateY should go after translate and rotateX');
+          order = 4;
+          output[key] = value;
+          break;
+        case 'scale':
+          invariant(order < 5, 'Illegal native animated transform, scale should go after rotatations');
+          order = 5;
+          output['scaleX'] = output['scaleY'] = value;
+          break;
+        case 'scaleX':
+        case 'scaleY':
+          invariant(order < 6, 'Illegal native animated transform, scaleX/scaleY should go after rotatations');
+          output[key] = value;
+          break;
+        default:
+          throw new Error('Native animated transform doesn\'t support property; ' + key);
+      }
+    }
+  });
+  for (var key in animated) {
+    delete statics[key];
+  }
+  return {
+    animated: animated,
+    statics: statics,
+  };
 }
 
 function validateInterpolation(config: Object): void {
@@ -129,6 +203,7 @@ module.exports = {
   API,
   validateProps,
   validateStyles,
+  validateTransform,
   validateInterpolation,
   generateNewNodeTag,
   generateNewAnimationId,

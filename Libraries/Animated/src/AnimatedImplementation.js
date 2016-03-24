@@ -1102,6 +1102,18 @@ class AnimatedTransform extends AnimatedWithChildren {
     this._transforms = transforms;
   }
 
+  __makeNative() {
+    super.__makeNative();
+    this._transforms.forEach(transform => {
+      for (var key in transform) {
+        var value = transform[key];
+        if (value instanceof Animated) {
+          value.__makeNative();
+        }
+      }
+    });
+  }
+
   __getValue(): Array<Object> {
     return this._transforms.map(transform => {
       var result = {};
@@ -1153,6 +1165,15 @@ class AnimatedTransform extends AnimatedWithChildren {
         }
       }
     });
+    super.__detach();
+  }
+
+  __getNativeConfig(): any {
+    var config = NativeAnimatedHelper.validateTransform(this._transforms, x => x instanceof Animated);
+    return {
+      ...config,
+      type: 'transform',
+    }
   }
 }
 
