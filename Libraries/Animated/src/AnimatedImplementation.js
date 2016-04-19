@@ -1291,7 +1291,7 @@ class AnimatedProps extends Animated {
     for (var key in this._props) {
       var value = this._props[key];
       if (value instanceof Animated) {
-        if (!value.__isNative) {
+        if (!value.__isNative || true) {
           // We cannot use value of natively driven nodes this way as the value we have access from JS
           // may not be up to date
           props[key] = value.__getValue();
