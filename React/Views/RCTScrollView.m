@@ -487,6 +487,15 @@ static inline void RCTApplyTranformationAccordingLayoutDirection(UIView *view, U
   _scrollView.delegate = nil;
 }
 
+- (RCTRootView*)findRootView
+{
+  UIView *rootView = self.superview;
+  while (rootView != nil && ![rootView isKindOfClass:[RCTRootView class]]) {
+    rootView = [rootView superview];
+  }
+  return (RCTRootView*)rootView;
+}
+
 - (void)layoutSubviews
 {
   [super layoutSubviews];
@@ -697,6 +706,8 @@ RCT_SCROLL_EVENT_HANDLER(scrollViewDidZoom, onScroll)
 
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
 {
+  // Cancel all in-js touch handlers
+  [[self findRootView] cancelTouches];
   _allowNextScrollNoMatterWhat = YES; // Ensure next scroll event is recorded, regardless of throttle
   RCT_SEND_SCROLL_EVENT(onScrollBeginDrag, nil);
   RCT_FORWARD_SCROLL_EVENT(scrollViewWillBeginDragging:scrollView);

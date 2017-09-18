@@ -3489,7 +3489,7 @@ function setResponderAndExtractTransfer(topLevelType, targetInst, nativeEvent, n
 }
 
 function canTriggerTransfer(topLevelType, topLevelInst, nativeEvent) {
-    return topLevelInst && ("topScroll" === topLevelType && !nativeEvent.responderIgnoreScroll || trackedTouchCount > 0 && "topSelectionChange" === topLevelType || isStartish$1(topLevelType) || isMoveish$1(topLevelType));
+    return topLevelInst && (trackedTouchCount > 0 && "topSelectionChange" === topLevelType || isStartish$1(topLevelType) || isMoveish$1(topLevelType));
 }
 
 function noResponderTouches(nativeEvent) {

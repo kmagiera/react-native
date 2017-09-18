@@ -156,7 +156,6 @@ public class ScrollEvent extends Event<ScrollEvent> {
     event.putMap("velocity", velocity);
 
     event.putInt("target", getViewTag());
-    event.putBoolean("responderIgnoreScroll", true);
     return event;
   }
 }
