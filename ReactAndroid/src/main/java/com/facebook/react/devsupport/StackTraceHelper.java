@@ -9,6 +9,9 @@
 
 package com.facebook.react.devsupport;
 
+import android.os.Parcel;
+import android.os.Parcelable;
+
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
@@ -37,6 +40,18 @@ public class StackTraceHelper {
    * Represents a generic entry in a stack trace, be it originally from JS or Java.
    */
   public static class StackFrameImpl implements StackFrame {
+
+    public static final Parcelable.Creator<StackFrameImpl> CREATOR =
+            new Parcelable.Creator<StackFrameImpl>() {
+      public StackFrameImpl createFromParcel(Parcel in) {
+        return new StackFrameImpl(in);
+      }
+
+      public StackFrameImpl[] newArray(int size) {
+        return new StackFrameImpl[size];
+      }
+    };
+
     private final String mFile;
     private final String mMethod;
     private final int mLine;
@@ -110,6 +125,28 @@ public class StackTraceHelper {
               "methodName", getMethod(),
               "lineNumber", getLine(),
               "column", getColumn()));
+    }
+
+    private StackFrameImpl(Parcel in) {
+      mFile = in.readString();
+      mMethod = in.readString();
+      mLine = in.readInt();
+      mColumn = in.readInt();
+      mFileName = in.readString();
+    }
+
+    @Override
+    public int describeContents() {
+      return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+      dest.writeString(mFile);
+      dest.writeString(mMethod);
+      dest.writeInt(mLine);
+      dest.writeInt(mColumn);
+      dest.writeString(mFileName);
     }
   }
 

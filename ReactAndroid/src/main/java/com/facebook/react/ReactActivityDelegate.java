@@ -85,17 +85,6 @@ public class ReactActivityDelegate {
 
   protected void onCreate(Bundle savedInstanceState) {
     boolean needsOverlayPermission = false;
-    if (getReactNativeHost().getUseDeveloperSupport() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      // Get permission to show redbox in dev builds.
-      if (!Settings.canDrawOverlays(getContext())) {
-        needsOverlayPermission = true;
-        Intent serviceIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getContext().getPackageName()));
-        FLog.w(ReactConstants.TAG, REDBOX_PERMISSION_MESSAGE);
-        Toast.makeText(getContext(), REDBOX_PERMISSION_MESSAGE, Toast.LENGTH_LONG).show();
-        ((Activity) getContext()).startActivityForResult(serviceIntent, REQUEST_OVERLAY_PERMISSION_CODE);
-      }
-    }
-
     if (mMainComponentName != null && !needsOverlayPermission) {
       loadApp(mMainComponentName);
     }

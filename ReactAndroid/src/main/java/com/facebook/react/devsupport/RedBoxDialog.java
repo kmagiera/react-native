@@ -188,76 +188,76 @@ import org.json.JSONObject;
     }
   }
 
-  private static class OpenStackFrameTask extends AsyncTask<StackFrame, Void, Void> {
-    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+//  private static class OpenStackFrameTask extends AsyncTask<StackFrame, Void, Void> {
+//    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+//
+//    private final DevSupportManager mDevSupportManager;
+//
+//    private OpenStackFrameTask(DevSupportManager devSupportManager) {
+//      mDevSupportManager = devSupportManager;
+//    }
+//
+//    @Override
+//    protected Void doInBackground(StackFrame... stackFrames) {
+//      try {
+//        String openStackFrameUrl =
+//            Uri.parse(mDevSupportManager.getSourceUrl()).buildUpon()
+//                .path("/open-stack-frame")
+//                .query(null)
+//                .build()
+//                .toString();
+//        OkHttpClient client = new OkHttpClient();
+//        for (StackFrame frame: stackFrames) {
+//          String payload = stackFrameToJson(frame).toString();
+//          RequestBody body = RequestBody.create(JSON, payload);
+//          Request request = new Request.Builder().url(openStackFrameUrl).post(body).build();
+//          client.newCall(request).execute();
+//        }
+//      } catch (Exception e) {
+//        FLog.e(ReactConstants.TAG, "Could not open stack frame", e);
+//      }
+//      return null;
+//    }
+//
+//    private static JSONObject stackFrameToJson(StackFrame frame) {
+//      return new JSONObject(
+//          MapBuilder.of(
+//              "file", frame.getFile(),
+//              "methodName", frame.getMethod(),
+//              "lineNumber", frame.getLine(),
+//              "column", frame.getColumn()
+//          ));
+//    }
+//  }
 
-    private final DevSupportManager mDevSupportManager;
-
-    private OpenStackFrameTask(DevSupportManager devSupportManager) {
-      mDevSupportManager = devSupportManager;
-    }
-
-    @Override
-    protected Void doInBackground(StackFrame... stackFrames) {
-      try {
-        String openStackFrameUrl =
-            Uri.parse(mDevSupportManager.getSourceUrl()).buildUpon()
-                .path("/open-stack-frame")
-                .query(null)
-                .build()
-                .toString();
-        OkHttpClient client = new OkHttpClient();
-        for (StackFrame frame: stackFrames) {
-          String payload = stackFrameToJson(frame).toString();
-          RequestBody body = RequestBody.create(JSON, payload);
-          Request request = new Request.Builder().url(openStackFrameUrl).post(body).build();
-          client.newCall(request).execute();
-        }
-      } catch (Exception e) {
-        FLog.e(ReactConstants.TAG, "Could not open stack frame", e);
-      }
-      return null;
-    }
-
-    private static JSONObject stackFrameToJson(StackFrame frame) {
-      return new JSONObject(
-          MapBuilder.of(
-              "file", frame.getFile(),
-              "methodName", frame.getMethod(),
-              "lineNumber", frame.getLine(),
-              "column", frame.getColumn()
-          ));
-    }
-  }
-
-  private static class CopyToHostClipBoardTask extends AsyncTask<String, Void, Void> {
-    private final DevSupportManager mDevSupportManager;
-
-    private CopyToHostClipBoardTask(DevSupportManager devSupportManager) {
-      mDevSupportManager = devSupportManager;
-    }
-
-    @Override
-    protected Void doInBackground(String... clipBoardString) {
-      try {
-        String sendClipBoardUrl =
-            Uri.parse(mDevSupportManager.getSourceUrl()).buildUpon()
-                .path("/copy-to-clipboard")
-                .query(null)
-                .build()
-                .toString();
-        for (String string: clipBoardString) {
-          OkHttpClient client = new OkHttpClient();
-          RequestBody body = RequestBody.create(null, string);
-          Request request = new Request.Builder().url(sendClipBoardUrl).post(body).build();
-          client.newCall(request).execute();
-        }
-      } catch (Exception e) {
-        FLog.e(ReactConstants.TAG, "Could not copy to the host clipboard", e);
-      }
-      return null;
-    }
-  }
+//  private static class CopyToHostClipBoardTask extends AsyncTask<String, Void, Void> {
+//    private final DevSupportManager mDevSupportManager;
+//
+//    private CopyToHostClipBoardTask(DevSupportManager devSupportManager) {
+//      mDevSupportManager = devSupportManager;
+//    }
+//
+//    @Override
+//    protected Void doInBackground(String... clipBoardString) {
+//      try {
+//        String sendClipBoardUrl =
+//            Uri.parse(mDevSupportManager.getSourceUrl()).buildUpon()
+//                .path("/copy-to-clipboard")
+//                .query(null)
+//                .build()
+//                .toString();
+//        for (String string: clipBoardString) {
+//          OkHttpClient client = new OkHttpClient();
+//          RequestBody body = RequestBody.create(null, string);
+//          Request request = new Request.Builder().url(sendClipBoardUrl).post(body).build();
+//          client.newCall(request).execute();
+//        }
+//      } catch (Exception e) {
+//        FLog.e(ReactConstants.TAG, "Could not copy to the host clipboard", e);
+//      }
+//      return null;
+//    }
+//  }
 
   protected RedBoxDialog(
     Context context,
@@ -277,12 +277,12 @@ import org.json.JSONObject;
     mStackView.setOnItemClickListener(this);
 
     mReloadJsButton = (Button) findViewById(R.id.rn_redbox_reload_button);
-    mReloadJsButton.setOnClickListener(new View.OnClickListener() {
-      @Override
-      public void onClick(View v) {
-        mDevSupportManager.handleReloadJS();
-      }
-    });
+//    mReloadJsButton.setOnClickListener(new View.OnClickListener() {
+//      @Override
+//      public void onClick(View v) {
+//        mDevSupportManager.handleReloadJS();
+//      }
+//    });
     mDismissButton = (Button) findViewById(R.id.rn_redbox_dismiss_button);
     mDismissButton.setOnClickListener(new View.OnClickListener() {
       @Override
@@ -291,18 +291,18 @@ import org.json.JSONObject;
       }
     });
     mCopyToClipboardButton = (Button) findViewById(R.id.rn_redbox_copy_button);
-    mCopyToClipboardButton.setOnClickListener(new View.OnClickListener() {
-      @Override
-      public void onClick(View v) {
-        String title = mDevSupportManager.getLastErrorTitle();
-        StackFrame[] stack = mDevSupportManager.getLastErrorStack();
-        Assertions.assertNotNull(title);
-        Assertions.assertNotNull(stack);
-        new CopyToHostClipBoardTask(mDevSupportManager).executeOnExecutor(
-            AsyncTask.THREAD_POOL_EXECUTOR,
-            StackTraceHelper.formatStackTrace(title, stack));
-      }
-    });
+//    mCopyToClipboardButton.setOnClickListener(new View.OnClickListener() {
+//      @Override
+//      public void onClick(View v) {
+//        String title = mDevSupportManager.getLastErrorTitle();
+//        StackFrame[] stack = mDevSupportManager.getLastErrorStack();
+//        Assertions.assertNotNull(title);
+//        Assertions.assertNotNull(stack);
+//        new CopyToHostClipBoardTask(mDevSupportManager).executeOnExecutor(
+//            AsyncTask.THREAD_POOL_EXECUTOR,
+//            StackTraceHelper.formatStackTrace(title, stack));
+//      }
+//    });
 
     if (mRedBoxHandler != null && mRedBoxHandler.isReportEnabled()) {
       mLoadingIndicator = (ProgressBar) findViewById(R.id.rn_redbox_loading_indicator);
@@ -337,9 +337,9 @@ import org.json.JSONObject;
 
   @Override
   public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-    new OpenStackFrameTask(mDevSupportManager).executeOnExecutor(
-        AsyncTask.THREAD_POOL_EXECUTOR,
-        (StackFrame) mStackView.getAdapter().getItem(position));
+//    new OpenStackFrameTask(mDevSupportManager).executeOnExecutor(
+//        AsyncTask.THREAD_POOL_EXECUTOR,
+//        (StackFrame) mStackView.getAdapter().getItem(position));
   }
 
   @Override

@@ -576,7 +576,9 @@ Next, make sure you have the Internet permission in your `AndroidManifest.xml`:
 
 If you need to access to the `DevSettingsActivity` add to your `AndroidManifest.xml`:
 
-    <activity android:name="com.facebook.react.devsupport.DevSettingsActivity" />
+    <activity
+        android:name="com.facebook.react.devsupport.DevSupportActivity"
+        android:theme="@style/Theme.ReactNative.DevSupportWindow" />
 
 This is only really used in dev mode when reloading JavaScript from the development server, so you can strip this in release builds if you need to.
 
@@ -849,7 +851,7 @@ At this point you can continue developing your app as usual. Refer to our [debug
     if (!document.querySelector('block')) {
       return;
     }
-  
+
     // If we are coming to the page with a hash in it (i.e. from a search, for example), try to get
     // us as close as possible to the correct platform and dev os using the hashtag and block walk up.
     var foundHash = false;

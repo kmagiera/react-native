@@ -13,7 +13,6 @@ import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageInfo;
@@ -21,6 +20,7 @@ import android.content.pm.PackageManager;
 import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.util.Log;
 import android.util.Pair;
 import android.widget.Toast;
 import com.facebook.common.logging.FLog;
@@ -56,7 +56,6 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
@@ -91,7 +90,7 @@ import okhttp3.RequestBody;
  *
  * IMPORTANT: In order for developer support to work correctly it is required that the
  * manifest of your application contain the following entries:
- * {@code <activity android:name="com.facebook.react.devsupport.DevSettingsActivity"/>}
+ * {@code <activity android:name="com.facebook.react.devsupport.DevSettingsFragment"/>}
  * {@code <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>}
  */
 public class DevSupportManagerImpl implements
@@ -113,17 +112,15 @@ public class DevSupportManagerImpl implements
   private final Context mApplicationContext;
   private final ShakeDetector mShakeDetector;
   private final BroadcastReceiver mReloadAppBroadcastReceiver;
+  private final BroadcastReceiver mDevSupportActivityBroadcastReceiver;
   private final DevServerHelper mDevServerHelper;
-  private final LinkedHashMap<String, DevOptionHandler> mCustomDevOptions =
-      new LinkedHashMap<>();
+  private final ArrayList<DevOptionHandler> mCustomDevOptions = new ArrayList<>();
   private final ReactInstanceDevCommandsHandler mReactInstanceCommandsHandler;
   private final @Nullable String mJSAppBundleName;
   private final File mJSBundleTempFile;
   private final DefaultNativeModuleCallExceptionHandler mDefaultNativeModuleCallExceptionHandler;
   private final DevLoadingViewController mDevLoadingViewController;
 
-  private @Nullable RedBoxDialog mRedBoxDialog;
-  private @Nullable AlertDialog mDevOptionsDialog;
   private @Nullable DebugOverlayController mDebugOverlayController;
   private boolean mDevLoadingViewVisible = false;
   private @Nullable ReactContext mCurrentContext;
@@ -228,6 +225,16 @@ public class DevSupportManagerImpl implements
       }
     };
 
+    mDevSupportActivityBroadcastReceiver = new BroadcastReceiver() {
+      @Override
+      public void onReceive(Context context, Intent intent) {
+        if (intent.hasExtra("selectedDevDialogOption")) {
+          int which = intent.getIntExtra("selectedDevDialogOption", 0);
+          getOptions().get(which).onOptionSelected();
+        }
+      }
+    };
+
     // We store JS bundle loaded from dev server in a single destination in app's data dir.
     // In case when someone schedule 2 subsequent reloads it may happen that JS thread will
     // start reading first reload output while the second reload starts writing to the same
@@ -279,10 +286,10 @@ public class DevSupportManagerImpl implements
    * called.
    */
   @Override
-  public void addCustomDevOption(
-      String optionName,
-      DevOptionHandler optionHandler) {
-    mCustomDevOptions.put(optionName, optionHandler);
+  public void addCustomDevOption(String optionName, DevOptionHandler optionHandler) {
+    // TODO: optionName is no longer used, we should consider updating the interface and remove this
+    // parameter. Now the DevOptionHandler should return its name via getOptionName method
+    mCustomDevOptions.add(optionHandler);
   }
 
   @Override
@@ -318,39 +325,61 @@ public class DevSupportManagerImpl implements
       final String message,
       final ReadableArray details,
       final int errorCookie) {
-    UiThreadUtil.runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            // Since we only show the first JS error in a succession of JS errors, make sure we only
-            // update the error message for that error message. This assumes that updateJSError
-            // belongs to the most recent showNewJSError
-            if (mRedBoxDialog == null ||
-                !mRedBoxDialog.isShowing() ||
-                errorCookie != mLastErrorCookie) {
-              return;
-            }
-            StackFrame[] stack = StackTraceHelper.convertJsStackTrace(details);
-            Pair<String, StackFrame[]> errorInfo =
-                processErrorCustomizers(Pair.create(message, stack));
-            mRedBoxDialog.setExceptionDetails(errorInfo.first, errorInfo.second);
-            updateLastErrorInfo(message, stack, errorCookie, ErrorType.JS);
-            // JS errors are reported here after source mapping.
-            if (mRedBoxHandler != null) {
-              mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.JS);
-              mRedBoxDialog.resetReporting(true);
-            }
-            mRedBoxDialog.show();
-          }
-        });
+//    UiThreadUtil.runOnUiThread(
+//        new Runnable() {
+//          @Override
+//          public void run() {
+//            // Since we only show the first JS error in a succession of JS errors, make sure we only
+//            // update the error message for that error message. This assumes that updateJSError
+//            // belongs to the most recent showNewJSError
+//            if (mRedBoxDialog == null ||
+//                !mRedBoxDialog.isShowing() ||
+//                errorCookie != mLastErrorCookie) {
+//              return;
+//            }
+//            StackFrame[] stack = StackTraceHelper.convertJsStackTrace(details);
+//            Pair<String, StackFrame[]> errorInfo =
+//                processErrorCustomizers(Pair.create(message, stack));
+//            mRedBoxDialog.setExceptionDetails(errorInfo.first, errorInfo.second);
+//            updateLastErrorInfo(message, stack, errorCookie, ErrorType.JS);
+//            // JS errors are reported here after source mapping.
+//            if (mRedBoxHandler != null) {
+//              mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.JS);
+//              mRedBoxDialog.resetReporting(true);
+//            }
+//            mRedBoxDialog.show();
+//          }
+//        });
+    // Since we only show the first JS error in a succession of JS errors, make sure we only
+    // update the error message for that error message. This assumes that updateJSError
+    // belongs to the most recent showNewJSError
+    if (errorCookie != mLastErrorCookie) {
+      return;
+    }
+
+    StackFrame[] stack = StackTraceHelper.convertJsStackTrace(details);
+    Pair<String, StackFrame[]> errorInfo =
+            processErrorCustomizers(Pair.create(message, stack));
+
+    updateLastErrorInfo(message, stack, errorCookie, ErrorType.JS);
+
+//    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
+//    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//    intent.putExtra("errorTitle", errorInfo.first);
+//    intent.putExtra("stack", errorInfo.second);
+//    if (mRedBoxHandler != null) {
+//      mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.JS);
+//      intent.putExtra("reporting", true);
+//    }
+//    mApplicationContext.startActivity(intent);
   }
 
   @Override
   public void hideRedboxDialog() {
     // dismiss redbox if exists
-    if (mRedBoxDialog != null) {
-      mRedBoxDialog.dismiss();
-    }
+//    if (mRedBoxDialog != null) {
+//      mRedBoxDialog.dismiss();
+//    }
   }
 
   private void showNewError(
@@ -358,144 +387,157 @@ public class DevSupportManagerImpl implements
       final StackFrame[] stack,
       final int errorCookie,
       final ErrorType errorType) {
-    UiThreadUtil.runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            if (mRedBoxDialog == null) {
-              mRedBoxDialog = new RedBoxDialog(mApplicationContext, DevSupportManagerImpl.this, mRedBoxHandler);
-              mRedBoxDialog.getWindow().setType(WindowOverlayCompat.TYPE_SYSTEM_ALERT);
-            }
-            if (mRedBoxDialog.isShowing()) {
-              // Sometimes errors cause multiple errors to be thrown in JS in quick succession. Only
-              // show the first and most actionable one.
-              return;
-            }
-            Pair<String, StackFrame[]> errorInfo = processErrorCustomizers(Pair.create(message, stack));
-            mRedBoxDialog.setExceptionDetails(errorInfo.first, errorInfo.second);
-            updateLastErrorInfo(message, stack, errorCookie, errorType);
-            // Only report native errors here. JS errors are reported
-            // inside {@link #updateJSError} after source mapping.
-            if (mRedBoxHandler != null && errorType == ErrorType.NATIVE) {
-              mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.NATIVE);
-              mRedBoxDialog.resetReporting(true);
-            } else {
-              mRedBoxDialog.resetReporting(false);
-            }
-            mRedBoxDialog.show();
-          }
-        });
+    Pair<String, StackFrame[]> errorInfo = processErrorCustomizers(Pair.create(message, stack));
+    updateLastErrorInfo(message, stack, errorCookie, errorType);
+    // Only report native errors here. JS errors are reported
+    // inside {@link #updateJSError} after source mapping.
+
+    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    intent.putExtra("redBoxTitle", errorInfo.first);
+    intent.putExtra("stack", errorInfo.second);
+    if (mRedBoxHandler != null && errorType == ErrorType.NATIVE) {
+      mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.NATIVE);
+      intent.putExtra("reporting", true);
+    } else {
+      intent.putExtra("reporting", false);
+    }
+    mApplicationContext.startActivity(intent);
   }
 
-  @Override
-  public void showDevOptionsDialog() {
-    if (mDevOptionsDialog != null || !mIsDevSupportEnabled || ActivityManager.isUserAMonkey()) {
-      return;
-    }
-    LinkedHashMap<String, DevOptionHandler> options = new LinkedHashMap<>();
+  private List<DevOptionHandler> getOptions() {
+    ArrayList<DevOptionHandler> options = new ArrayList<>();
     /* register standard options */
-    options.put(
-        mApplicationContext.getString(R.string.catalyst_reloadjs), new DevOptionHandler() {
+    options.add(
+        new DevOptionHandler() {
+          @Override
+          public String getOptionName(Context context) {
+            return context.getString(R.string.catalyst_reloadjs);
+          }
+
           @Override
           public void onOptionSelected() {
             handleReloadJS();
           }
         });
-    options.put(
-        mDevSettings.isRemoteJSDebugEnabled() ?
-            mApplicationContext.getString(R.string.catalyst_debugjs_off) :
-            mApplicationContext.getString(R.string.catalyst_debugjs),
+    options.add(
         new DevOptionHandler() {
+          @Override
+          public String getOptionName(Context context) {
+            return mDevSettings.isRemoteJSDebugEnabled() ?
+                    context.getString(R.string.catalyst_debugjs_off) :
+                    context.getString(R.string.catalyst_debugjs);
+          }
+
           @Override
           public void onOptionSelected() {
             mDevSettings.setRemoteJSDebugEnabled(!mDevSettings.isRemoteJSDebugEnabled());
             handleReloadJS();
           }
         });
-    options.put(
-      mDevSettings.isReloadOnJSChangeEnabled()
-        ? mApplicationContext.getString(R.string.catalyst_live_reload_off)
-        : mApplicationContext.getString(R.string.catalyst_live_reload),
+    options.add(
       new DevOptionHandler() {
+        @Override
+        public String getOptionName(Context context) {
+          return mDevSettings.isReloadOnJSChangeEnabled()
+                  ? context.getString(R.string.catalyst_live_reload_off)
+                  : context.getString(R.string.catalyst_live_reload);
+        }
+
         @Override
         public void onOptionSelected() {
           mDevSettings.setReloadOnJSChangeEnabled(!mDevSettings.isReloadOnJSChangeEnabled());
         }
       });
-    options.put(
-            mDevSettings.isHotModuleReplacementEnabled()
-                    ? mApplicationContext.getString(R.string.catalyst_hot_module_replacement_off)
-                    : mApplicationContext.getString(R.string.catalyst_hot_module_replacement),
+    options.add(
             new DevOptionHandler() {
+              @Override
+              public String getOptionName(Context context) {
+                return mDevSettings.isHotModuleReplacementEnabled()
+                        ? context.getString(R.string.catalyst_hot_module_replacement_off)
+                        : context.getString(R.string.catalyst_hot_module_replacement);
+              }
+
               @Override
               public void onOptionSelected() {
                 mDevSettings.setHotModuleReplacementEnabled(!mDevSettings.isHotModuleReplacementEnabled());
                 handleReloadJS();
               }
             });
-    options.put(
-        mApplicationContext.getString(R.string.catalyst_element_inspector),
+    options.add(
         new DevOptionHandler() {
+          @Override
+          public String getOptionName(Context context) {
+            return mApplicationContext.getString(R.string.catalyst_element_inspector);
+          }
+
           @Override
           public void onOptionSelected() {
             mDevSettings.setElementInspectorEnabled(!mDevSettings.isElementInspectorEnabled());
             mReactInstanceCommandsHandler.toggleElementInspector();
           }
         });
-    options.put(
-      mDevSettings.isFpsDebugEnabled()
-        ? mApplicationContext.getString(R.string.catalyst_perf_monitor_off)
-        : mApplicationContext.getString(R.string.catalyst_perf_monitor),
+    options.add(
       new DevOptionHandler() {
+        @Override
+        public String getOptionName(Context context) {
+          return mDevSettings.isFpsDebugEnabled()
+                  ? context.getString(R.string.catalyst_perf_monitor_off)
+                  : context.getString(R.string.catalyst_perf_monitor);
+        }
+
         @Override
         public void onOptionSelected() {
           mDevSettings.setFpsDebugEnabled(!mDevSettings.isFpsDebugEnabled());
         }
       });
-    options.put(
-        mApplicationContext.getString(R.string.catalyst_poke_sampling_profiler),
+    options.add(
         new DevOptionHandler() {
+          @Override
+          public String getOptionName(Context context) {
+            return mApplicationContext.getString(R.string.catalyst_poke_sampling_profiler);
+          }
+
           @Override
           public void onOptionSelected() {
             handlePokeSamplingProfiler();
           }
         });
-    options.put(
-        mApplicationContext.getString(R.string.catalyst_settings), new DevOptionHandler() {
+    options.add(
+        new DevOptionHandler() {
+          @Override
+          public String getOptionName(Context context) {
+            return mApplicationContext.getString(R.string.catalyst_settings);
+          }
+
           @Override
           public void onOptionSelected() {
-            Intent intent = new Intent(mApplicationContext, DevSettingsActivity.class);
+            Intent intent = new Intent(mApplicationContext, DevSettingsFragment.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             mApplicationContext.startActivity(intent);
           }
         });
 
     if (mCustomDevOptions.size() > 0) {
-      options.putAll(mCustomDevOptions);
+      options.addAll(mCustomDevOptions);
     }
 
-    final DevOptionHandler[] optionHandlers = options.values().toArray(new DevOptionHandler[0]);
+    return options;
+  }
 
-    mDevOptionsDialog =
-        new AlertDialog.Builder(mApplicationContext)
-            .setItems(
-                options.keySet().toArray(new String[0]),
-                new DialogInterface.OnClickListener() {
-                  @Override
-                  public void onClick(DialogInterface dialog, int which) {
-                    optionHandlers[which].onOptionSelected();
-                    mDevOptionsDialog = null;
-                  }
-                })
-            .setOnCancelListener(new DialogInterface.OnCancelListener() {
-              @Override
-              public void onCancel(DialogInterface dialog) {
-                mDevOptionsDialog = null;
-              }
-            })
-            .create();
-    mDevOptionsDialog.getWindow().setType(WindowOverlayCompat.TYPE_SYSTEM_ALERT);
-    mDevOptionsDialog.show();
+  @Override
+  public void showDevOptionsDialog() {
+    if (!mIsDevSupportEnabled || ActivityManager.isUserAMonkey()) {
+      return;
+    }
+    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    List<String> optionNames = new ArrayList<>();
+    for (DevOptionHandler option : getOptions()) {
+      optionNames.add(option.getOptionName(mApplicationContext));
+    }
+    intent.putExtra("options", optionNames.toArray(new String[0]));
+    mApplicationContext.startActivity(intent);
   }
 
   /**
@@ -659,9 +701,9 @@ public class DevSupportManagerImpl implements
     ReactMarker.logMarker(ReactMarkerConstants.RELOAD);
 
     // dismiss redbox if exists
-    if (mRedBoxDialog != null) {
-      mRedBoxDialog.dismiss();
-    }
+//    if (mRedBoxDialog != null) {
+//      mRedBoxDialog.dismiss();
+//    }
 
     if (mDevSettings.isRemoteJSDebugEnabled()) {
       PrinterHolder.getPrinter()
@@ -950,6 +992,11 @@ public class DevSupportManagerImpl implements
         IntentFilter filter = new IntentFilter();
         filter.addAction(DevServerHelper.getReloadAppAction(mApplicationContext));
         mApplicationContext.registerReceiver(mReloadAppBroadcastReceiver, filter);
+
+        filter = new IntentFilter();
+        filter.addAction(mApplicationContext.getPackageName() + ".DEV_SUPPORT_ACTION");
+        mApplicationContext.registerReceiver(mDevSupportActivityBroadcastReceiver, filter);
+
         mIsReceiverRegistered = true;
       }
 
@@ -989,14 +1036,14 @@ public class DevSupportManagerImpl implements
       }
 
       // hide redbox dialog
-      if (mRedBoxDialog != null) {
-        mRedBoxDialog.dismiss();
-      }
+//      if (mRedBoxDialog != null) {
+//        mRedBoxDialog.dismiss();
+//      }
 
       // hide dev options dialog
-      if (mDevOptionsDialog != null) {
-        mDevOptionsDialog.dismiss();
-      }
+//      if (mDevOptionsDialog != null) {
+//        mDevOptionsDialog.dismiss();
+//      }
 
       // hide loading view
       mDevLoadingViewController.hide();

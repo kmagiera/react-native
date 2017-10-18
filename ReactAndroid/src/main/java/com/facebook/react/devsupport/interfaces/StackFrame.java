@@ -9,34 +9,36 @@
 
 package com.facebook.react.devsupport.interfaces;
 
+import android.os.Parcelable;
+
 import org.json.JSONObject;
 
 /**
   * Represents a generic entry in a stack trace, be it originally from JS or Java.
   */
-public interface StackFrame {
+public interface StackFrame extends Parcelable {
   /**
     * Get the file this stack frame points to.
     *
     * JS traces return the full path to the file here, while Java traces only return the file name
     * (the path is not known).
     */
-  public String getFile();
+  String getFile();
 
   /**
     * Get the name of the method this frame points to.
     */
-  public String getMethod();
+  String getMethod();
 
   /**
     * Get the line number this frame points to in the file returned by {@link #getFile()}.
     */
-  public int getLine();
+  int getLine();
 
   /**
     * Get the column this frame points to in the file returned by {@link #getFile()}.
     */
-  public int getColumn();
+  int getColumn();
 
   /**
     * Get just the name of the file this frame points to.
@@ -44,10 +46,10 @@ public interface StackFrame {
     * For JS traces this is different from {@link #getFile()} in that it only returns the file
     * name, not the full path. For Java traces there is no difference.
     */
-  public String getFileName();
+  String getFileName();
 
   /**
    * Convert the stack frame to a JSON representation.
    */
-  public JSONObject toJSON();
+  JSONObject toJSON();
 }

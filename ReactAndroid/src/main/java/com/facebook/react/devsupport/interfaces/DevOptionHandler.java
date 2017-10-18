@@ -9,6 +9,8 @@
 
 package com.facebook.react.devsupport.interfaces;
 
+import android.content.Context;
+
 /**
  * Callback class for custom options that may appear in {@link DevSupportManager} developer
  * options menu. In case when option registered for this handler is selected from the menu, the
@@ -20,6 +22,11 @@ public interface DevOptionHandler {
    * Triggered in case when user select custom developer option from the developers options menu
    * displayed with {@link DevSupportManager}.
    */
-  public void onOptionSelected();
+  void onOptionSelected();
+
+  /**
+   * Should return option name to be displayed on the developer options dialog.
+   */
+  String getOptionName(Context context);
 
 }

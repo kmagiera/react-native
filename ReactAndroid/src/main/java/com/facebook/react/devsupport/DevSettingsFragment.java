@@ -11,6 +11,7 @@ package com.facebook.react.devsupport;
 
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
+import android.preference.PreferenceFragment;
 
 import com.facebook.react.R;
 import com.facebook.react.common.DebugServerException;
@@ -19,12 +20,11 @@ import com.facebook.react.common.DebugServerException;
  * Activity that display developers settings. Should be added to the debug manifest of the app. Can
  * be triggered through the developers option menu displayed by {@link DevSupportManager}.
  */
-public class DevSettingsActivity extends PreferenceActivity {
+public class DevSettingsFragment extends PreferenceFragment {
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    setTitle(R.string.catalyst_settings_title);
     addPreferencesFromResource(R.xml.preferences);
   }
 }
