@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.annotation.Nullable;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
@@ -54,18 +55,16 @@ public class DevSupportActivity extends FragmentActivity {
   }
 
   private void showRedboxDialog() {
-    try {
-      Log.e("CAT", "BLABLA");
       RedBoxDialog redBoxDialog = new RedBoxDialog(this, null, null);
       String title = getIntent().getStringExtra("errorTitle");
-      StackFrame[] stack = (StackFrame[]) getIntent().getParcelableArrayExtra("stack");
+      Parcelable[] parcelableStack = getIntent().getParcelableArrayExtra("stack");
+      StackFrame[] stack = new StackFrame[parcelableStack.length];
+      for (int i = 0; i < parcelableStack.length; i++) {
+        stack[i] = (StackFrame) parcelableStack[i];
+      }
       boolean reporting = getIntent().getBooleanExtra("reporting", false);
       redBoxDialog.setExceptionDetails(title, stack);
       redBoxDialog.resetReporting(reporting);
       redBoxDialog.show();
-      Log.e("CAT", "DONE");
-    } catch (Throwable t) {
-      Log.e("CAT", "Trouble", t);
-    }
   }
 }

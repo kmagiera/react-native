@@ -9,6 +9,14 @@
     <item name="android:outAnimation">@android:anim/fade_out</item>
     <item name="android:textColor">@android:color/white</item>
   </style>
+  <style name="Theme.Catalyst.DevSupport" parent="@style/Theme.AppCompat.Light.NoActionBar">
+    <item name="android:windowBackground">@android:color/transparent</item>
+    <item name="android:colorBackgroundCacheHint">@null</item>
+    <item name="android:windowIsTranslucent">true</item>
+    <item name="android:windowNoTitle">true</item>
+    <item name="android:windowContentOverlay">@null</item>
+    <item name="android:windowAnimationStyle">@android:style/Animation.Translucent</item>
+  </style>
   <style name="Animation.Catalyst.RedBox" parent="@android:style/Animation">
     <item name="android:windowEnterAnimation">@anim/catalyst_push_up_in</item>
     <item name="android:windowExitAnimation">@anim/catalyst_push_up_out</item>

@@ -356,6 +356,7 @@ public class DevSupportManagerImpl implements
     if (errorCookie != mLastErrorCookie) {
       return;
     }
+    Log.e("CAT", "UPDATE LAST ERROR");
 
     StackFrame[] stack = StackTraceHelper.convertJsStackTrace(details);
     Pair<String, StackFrame[]> errorInfo =
@@ -363,15 +364,15 @@ public class DevSupportManagerImpl implements
 
     updateLastErrorInfo(message, stack, errorCookie, ErrorType.JS);
 
-//    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
-//    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-//    intent.putExtra("errorTitle", errorInfo.first);
-//    intent.putExtra("stack", errorInfo.second);
-//    if (mRedBoxHandler != null) {
-//      mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.JS);
-//      intent.putExtra("reporting", true);
-//    }
-//    mApplicationContext.startActivity(intent);
+    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    intent.putExtra("errorTitle", errorInfo.first);
+    intent.putExtra("stack", errorInfo.second);
+    if (mRedBoxHandler != null) {
+      mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.JS);
+      intent.putExtra("reporting", true);
+    }
+    mApplicationContext.startActivity(intent);
   }
 
   @Override
@@ -553,7 +554,8 @@ public class DevSupportManagerImpl implements
 
   @Override
   public boolean getDevSupportEnabled() {
-    return mIsDevSupportEnabled;
+    return true;
+//    return mIsDevSupportEnabled;
   }
 
   @Override

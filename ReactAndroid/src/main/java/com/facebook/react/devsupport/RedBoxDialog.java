@@ -306,7 +306,7 @@ import org.json.JSONObject;
 
     if (mRedBoxHandler != null && mRedBoxHandler.isReportEnabled()) {
       mLoadingIndicator = (ProgressBar) findViewById(R.id.rn_redbox_loading_indicator);
-      mLineSeparator = (View) findViewById(R.id.rn_redbox_line_separator);
+      mLineSeparator = findViewById(R.id.rn_redbox_line_separator);
       mReportTextView = (TextView) findViewById(R.id.rn_redbox_report_label);
       mReportTextView.setMovementMethod(LinkMovementMethod.getInstance());
       mReportTextView.setHighlightColor(Color.TRANSPARENT);
