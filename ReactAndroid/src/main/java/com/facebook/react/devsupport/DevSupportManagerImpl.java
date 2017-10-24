@@ -112,7 +112,7 @@ public class DevSupportManagerImpl implements
   private final Context mApplicationContext;
   private final ShakeDetector mShakeDetector;
   private final BroadcastReceiver mReloadAppBroadcastReceiver;
-  private final BroadcastReceiver mDevSupportActivityBroadcastReceiver;
+  private final DevSupportActivity.CallbackBroadcastReceiver mDevSupportActivityBroadcastReceiver;
   private final DevServerHelper mDevServerHelper;
   private final ArrayList<DevOptionHandler> mCustomDevOptions = new ArrayList<>();
   private final ReactInstanceDevCommandsHandler mReactInstanceCommandsHandler;
@@ -225,13 +225,15 @@ public class DevSupportManagerImpl implements
       }
     };
 
-    mDevSupportActivityBroadcastReceiver = new BroadcastReceiver() {
+    mDevSupportActivityBroadcastReceiver = new DevSupportActivity.CallbackBroadcastReceiver() {
       @Override
-      public void onReceive(Context context, Intent intent) {
-        if (intent.hasExtra("selectedDevDialogOption")) {
-          int which = intent.getIntExtra("selectedDevDialogOption", 0);
-          getOptions().get(which).onOptionSelected();
-        }
+      public void onDevOptionSelected(int which) {
+        getOptions().get(which).onOptionSelected();
+      }
+
+      @Override
+      public void onReload() {
+        handleReloadJS();
       }
     };
 
@@ -325,39 +327,12 @@ public class DevSupportManagerImpl implements
       final String message,
       final ReadableArray details,
       final int errorCookie) {
-//    UiThreadUtil.runOnUiThread(
-//        new Runnable() {
-//          @Override
-//          public void run() {
-//            // Since we only show the first JS error in a succession of JS errors, make sure we only
-//            // update the error message for that error message. This assumes that updateJSError
-//            // belongs to the most recent showNewJSError
-//            if (mRedBoxDialog == null ||
-//                !mRedBoxDialog.isShowing() ||
-//                errorCookie != mLastErrorCookie) {
-//              return;
-//            }
-//            StackFrame[] stack = StackTraceHelper.convertJsStackTrace(details);
-//            Pair<String, StackFrame[]> errorInfo =
-//                processErrorCustomizers(Pair.create(message, stack));
-//            mRedBoxDialog.setExceptionDetails(errorInfo.first, errorInfo.second);
-//            updateLastErrorInfo(message, stack, errorCookie, ErrorType.JS);
-//            // JS errors are reported here after source mapping.
-//            if (mRedBoxHandler != null) {
-//              mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.JS);
-//              mRedBoxDialog.resetReporting(true);
-//            }
-//            mRedBoxDialog.show();
-//          }
-//        });
     // Since we only show the first JS error in a succession of JS errors, make sure we only
     // update the error message for that error message. This assumes that updateJSError
     // belongs to the most recent showNewJSError
     if (errorCookie != mLastErrorCookie) {
       return;
     }
-    Log.e("CAT", "UPDATE LAST ERROR");
-
     StackFrame[] stack = StackTraceHelper.convertJsStackTrace(details);
     Pair<String, StackFrame[]> errorInfo =
             processErrorCustomizers(Pair.create(message, stack));
@@ -365,7 +340,7 @@ public class DevSupportManagerImpl implements
     updateLastErrorInfo(message, stack, errorCookie, ErrorType.JS);
 
     Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
     intent.putExtra("errorTitle", errorInfo.first);
     intent.putExtra("stack", errorInfo.second);
     if (mRedBoxHandler != null) {
@@ -378,9 +353,10 @@ public class DevSupportManagerImpl implements
   @Override
   public void hideRedboxDialog() {
     // dismiss redbox if exists
-//    if (mRedBoxDialog != null) {
-//      mRedBoxDialog.dismiss();
-//    }
+    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    intent.putExtra("close", true);
+    mApplicationContext.startActivity(intent);
   }
 
   private void showNewError(
@@ -394,8 +370,8 @@ public class DevSupportManagerImpl implements
     // inside {@link #updateJSError} after source mapping.
 
     Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-    intent.putExtra("redBoxTitle", errorInfo.first);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    intent.putExtra("errorTitle", errorInfo.first);
     intent.putExtra("stack", errorInfo.second);
     if (mRedBoxHandler != null && errorType == ErrorType.NATIVE) {
       mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.NATIVE);
@@ -532,7 +508,7 @@ public class DevSupportManagerImpl implements
       return;
     }
     Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
     List<String> optionNames = new ArrayList<>();
     for (DevOptionHandler option : getOptions()) {
       optionNames.add(option.getOptionName(mApplicationContext));
@@ -703,9 +679,7 @@ public class DevSupportManagerImpl implements
     ReactMarker.logMarker(ReactMarkerConstants.RELOAD);
 
     // dismiss redbox if exists
-//    if (mRedBoxDialog != null) {
-//      mRedBoxDialog.dismiss();
-//    }
+    hideRedboxDialog();
 
     if (mDevSettings.isRemoteJSDebugEnabled()) {
       PrinterHolder.getPrinter()
@@ -994,11 +968,7 @@ public class DevSupportManagerImpl implements
         IntentFilter filter = new IntentFilter();
         filter.addAction(DevServerHelper.getReloadAppAction(mApplicationContext));
         mApplicationContext.registerReceiver(mReloadAppBroadcastReceiver, filter);
-
-        filter = new IntentFilter();
-        filter.addAction(mApplicationContext.getPackageName() + ".DEV_SUPPORT_ACTION");
-        mApplicationContext.registerReceiver(mDevSupportActivityBroadcastReceiver, filter);
-
+        mDevSupportActivityBroadcastReceiver.register(mApplicationContext);
         mIsReceiverRegistered = true;
       }
 
@@ -1034,10 +1004,12 @@ public class DevSupportManagerImpl implements
       // unregister app reload broadcast receiver
       if (mIsReceiverRegistered) {
         mApplicationContext.unregisterReceiver(mReloadAppBroadcastReceiver);
+        mDevSupportActivityBroadcastReceiver.unregister(mApplicationContext);
         mIsReceiverRegistered = false;
       }
 
-      // hide redbox dialog
+      // hide redbox or dev options dialog
+
 //      if (mRedBoxDialog != null) {
 //        mRedBoxDialog.dismiss();
 //      }
