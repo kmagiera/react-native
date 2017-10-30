@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<TextView
-  xmlns:android="http://schemas.android.com/apk/res/android"
-  android:layout_width="match_parent"
-  android:layout_height="wrap_content"
-  android:paddingTop="5dp"
-  android:paddingBottom="5dp"
-  android:paddingStart="8dp"
-  android:paddingEnd="8dp"
-  android:textSize="12sp"
-  android:maxLines="1"
-  android:ellipsize="end"
-  android:gravity="center"/>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+    <TextView
+        android:id="@+id/dev_loading_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:textSize="12sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:focusable="false"
+        android:gravity="center"/>
+</FrameLayout>

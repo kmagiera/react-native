@@ -9,19 +9,16 @@
 
 package com.facebook.react.devsupport;
 
-import android.app.Dialog;
-import android.content.Context;
-import android.content.Intent;
+import android.app.Fragment;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Bundle;
 import android.text.SpannedString;
 import android.text.method.LinkMovementMethod;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -34,7 +31,6 @@ import com.facebook.infer.annotation.Assertions;
 import com.facebook.react.R;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.common.ReactConstants;
-import com.facebook.react.devsupport.RedBoxHandler.ReportCompletedListener;
 import com.facebook.react.devsupport.interfaces.StackFrame;
 
 import org.json.JSONObject;
@@ -49,36 +45,14 @@ import okhttp3.RequestBody;
 /**
  * Dialog for displaying JS errors in an eye-catching form (red box).
  */
-/* package */ class RedBoxDialog extends Dialog {
-
-  private final DoubleTapReloadRecognizer mDoubleTapReloadRecognizer;
-  private final @Nullable RedBoxHandler mRedBoxHandler;
+public class RedBoxFragment extends Fragment {
 
   private ListView mStackView;
-  private @Nullable String mLastErrorTitle;
-  private @Nullable StackFrame[] mLastErrorStack;
   private @Nullable Button mReportButton;
   private @Nullable TextView mReportTextView;
   private @Nullable ProgressBar mLoadingIndicator;
   private @Nullable View mLineSeparator;
   private boolean isReporting = false;
-
-  private ReportCompletedListener mReportCompletedListener = new ReportCompletedListener() {
-    @Override
-    public void onReportSuccess(final SpannedString spannedString) {
-      isReporting = false;
-      Assertions.assertNotNull(mReportButton).setEnabled(true);
-      Assertions.assertNotNull(mLoadingIndicator).setVisibility(View.GONE);
-      Assertions.assertNotNull(mReportTextView).setText(spannedString);
-    }
-    @Override
-    public void onReportError(final SpannedString spannedString) {
-      isReporting = false;
-      Assertions.assertNotNull(mReportButton).setEnabled(true);
-      Assertions.assertNotNull(mLoadingIndicator).setVisibility(View.GONE);
-      Assertions.assertNotNull(mReportTextView).setText(spannedString);
-    }
-  };
 
   private static class StackAdapter extends BaseAdapter {
     private static final int VIEW_TYPE_COUNT = 2;
@@ -233,124 +207,110 @@ import okhttp3.RequestBody;
     }
   }
 
-  protected RedBoxDialog(
-    Context context,
-    final String packagerSourceUrl,
-    @Nullable RedBoxHandler redBoxHandler) {
-    super(context, R.style.Theme_Catalyst_RedBox);
+  @Override
+  public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    View view = inflater.inflate(R.layout.redbox_view, container, false);
 
-    requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-    setContentView(R.layout.redbox_view);
-
-    mDoubleTapReloadRecognizer = new DoubleTapReloadRecognizer();
-    mRedBoxHandler = redBoxHandler;
-
-    mStackView = (ListView) findViewById(R.id.rn_redbox_stack);
+    mStackView = (ListView) view.findViewById(R.id.rn_redbox_stack);
     mStackView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
       @Override
       public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        String packagerSourceUrl = getArguments().getString(
+                DevSupportActivity.ACTION_EXTRA_REDBOX_PACKAGER_URL);
         new OpenStackFrameTask(packagerSourceUrl).executeOnExecutor(
-        AsyncTask.THREAD_POOL_EXECUTOR,
-        (StackFrame) mStackView.getAdapter().getItem(position));
+                AsyncTask.THREAD_POOL_EXECUTOR,
+                (StackFrame) mStackView.getAdapter().getItem(position));
       }
     });
 
-    Button reloadJsButton = (Button) findViewById(R.id.rn_redbox_reload_button);
+    Button reloadJsButton = (Button) view.findViewById(R.id.rn_redbox_reload_button);
     reloadJsButton.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View v) {
-        Intent intent = new Intent();
-        intent.setAction(getContext().getPackageName() + ".DEV_SUPPORT_ACTION");
-        intent.putExtra("reload", true);
-        getContext().sendBroadcast(intent);
+        ((DevSupportActivity) getActivity()).sendReloadRequest();
       }
     });
-    Button dismissButton = (Button) findViewById(R.id.rn_redbox_dismiss_button);
+    Button dismissButton = (Button) view.findViewById(R.id.rn_redbox_dismiss_button);
     dismissButton.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View v) {
-        dismiss();
+        getActivity().finish();
       }
     });
-    Button copyToClipboardButton = (Button) findViewById(R.id.rn_redbox_copy_button);
+    Button copyToClipboardButton = (Button) view.findViewById(R.id.rn_redbox_copy_button);
     copyToClipboardButton.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View v) {
-        String title = mLastErrorTitle;
-        StackFrame[] stack = mLastErrorStack;
-        Assertions.assertNotNull(title);
-        Assertions.assertNotNull(stack);
+        String packagerSourceUrl = getArguments().getString(
+                DevSupportActivity.ACTION_EXTRA_REDBOX_PACKAGER_URL);
         new CopyToHostClipBoardTask(packagerSourceUrl).executeOnExecutor(
             AsyncTask.THREAD_POOL_EXECUTOR,
-            StackTraceHelper.formatStackTrace(title, stack));
+            StackTraceHelper.formatStackTrace(getTitle(), getStack()));
       }
     });
 
-    if (mRedBoxHandler != null && mRedBoxHandler.isReportEnabled()) {
-      mLoadingIndicator = (ProgressBar) findViewById(R.id.rn_redbox_loading_indicator);
-      mLineSeparator = findViewById(R.id.rn_redbox_line_separator);
-      mReportTextView = (TextView) findViewById(R.id.rn_redbox_report_label);
-      mReportTextView.setMovementMethod(LinkMovementMethod.getInstance());
-      mReportTextView.setHighlightColor(Color.TRANSPARENT);
-      mReportButton = (Button) findViewById(R.id.rn_redbox_report_button);
-      mReportButton.setOnClickListener(new View.OnClickListener() {
-        @Override
-        public void onClick(View v) {
-          if (mRedBoxHandler == null || !mRedBoxHandler.isReportEnabled() || isReporting) {
-            return;
-          }
-          isReporting = true;
-          Assertions.assertNotNull(mReportTextView).setText("Reporting...");
-          Assertions.assertNotNull(mReportTextView).setVisibility(View.VISIBLE);
-          Assertions.assertNotNull(mLoadingIndicator).setVisibility(View.VISIBLE);
-          Assertions.assertNotNull(mLineSeparator).setVisibility(View.VISIBLE);
-          Assertions.assertNotNull(mReportButton).setEnabled(false);
+    mLoadingIndicator = (ProgressBar) view.findViewById(R.id.rn_redbox_loading_indicator);
+    mLineSeparator = view.findViewById(R.id.rn_redbox_line_separator);
+    mReportTextView = (TextView) view.findViewById(R.id.rn_redbox_report_label);
+    mReportTextView.setMovementMethod(LinkMovementMethod.getInstance());
+    mReportTextView.setHighlightColor(Color.TRANSPARENT);
+    mReportButton = (Button) view.findViewById(R.id.rn_redbox_report_button);
 
-          String title = Assertions.assertNotNull(mLastErrorTitle);
-          StackFrame[] stack = Assertions.assertNotNull(mLastErrorStack);
-
-          mRedBoxHandler.reportRedbox(
-                  title,
-                  stack,
-                  packagerSourceUrl,
-                  Assertions.assertNotNull(mReportCompletedListener));
+    mReportButton.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        if (isReporting) {
+          return;
         }
-      });
-    }
+        isReporting = true;
+        Assertions.assertNotNull(mReportTextView).setText("Reporting...");
+        Assertions.assertNotNull(mReportTextView).setVisibility(View.VISIBLE);
+        Assertions.assertNotNull(mLoadingIndicator).setVisibility(View.VISIBLE);
+        Assertions.assertNotNull(mLineSeparator).setVisibility(View.VISIBLE);
+        Assertions.assertNotNull(mReportButton).setEnabled(false);
+
+        ((DevSupportActivity) getActivity()).sendReportRequest(getTitle(), getStack());
+      }
+    });
+
+    updateData();
+
+    return view;
   }
 
-  public void setExceptionDetails(String title, StackFrame[] stack) {
-    mLastErrorTitle = title;
-    mLastErrorStack = stack;
-    mStackView.setAdapter(new StackAdapter(title, stack));
+  private String getTitle() {
+    return getArguments().getString(DevSupportActivity.ACTION_EXTRA_REDBOX_TITLE);
   }
 
-  /**
-   * Show the report button, hide the report textview and the loading indicator.
-   */
-  public void resetReporting(boolean enabled) {
-    if (mRedBoxHandler == null || !mRedBoxHandler.isReportEnabled()) {
-      return;
-    }
-    isReporting = false;
+  private StackFrame[] getStack() {
+    return StackTraceHelper.stackFromParcelableArray(getArguments().getParcelableArray(
+            DevSupportActivity.ACTION_EXTRA_REDBOX_STACK));
+  }
+
+  private boolean isReportingEnabled() {
+    return getArguments().getBoolean(DevSupportActivity.ACTION_EXTRA_REDBOX_REPORTING);
+  }
+
+  /*package*/ void updateData() {
+    mStackView.setAdapter(new StackAdapter(getTitle(), getStack()));
     Assertions.assertNotNull(mReportTextView).setVisibility(View.GONE);
     Assertions.assertNotNull(mLoadingIndicator).setVisibility(View.GONE);
     Assertions.assertNotNull(mLineSeparator).setVisibility(View.GONE);
     Assertions.assertNotNull(mReportButton).setVisibility(
-      enabled ? View.VISIBLE : View.GONE);
-    Assertions.assertNotNull(mReportButton).setEnabled(true);
+            isReportingEnabled() ? View.VISIBLE : View.GONE);
   }
 
-//  @Override
-//  public boolean onKeyUp(int keyCode, KeyEvent event) {
-//    if (keyCode == KeyEvent.KEYCODE_MENU) {
-//      mDevSupportManager.showDevOptionsDialog();
-//      return true;
-//    }
-//    if (mDoubleTapReloadRecognizer.didDoubleTapR(keyCode, getCurrentFocus())) {
-//      mDevSupportManager.handleReloadJS();
-//    }
-//    return super.onKeyUp(keyCode, event);
-//  }
+  /*package*/ void onReportSuccess(final SpannedString spannedString) {
+    isReporting = false;
+    Assertions.assertNotNull(mReportButton).setEnabled(true);
+    Assertions.assertNotNull(mLoadingIndicator).setVisibility(View.GONE);
+    Assertions.assertNotNull(mReportTextView).setText(spannedString);
+  }
+
+  /*package*/ void onReportError(final SpannedString spannedString) {
+    isReporting = false;
+    Assertions.assertNotNull(mReportButton).setEnabled(true);
+    Assertions.assertNotNull(mLoadingIndicator).setVisibility(View.GONE);
+    Assertions.assertNotNull(mReportTextView).setText(spannedString);
+  }
 }

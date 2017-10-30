@@ -278,4 +278,12 @@ public class StackTraceHelper {
 
     return stackTrace.toString();
   }
+
+  public static StackFrame[] stackFromParcelableArray(Parcelable[] parcelableStack) {
+    StackFrame[] stack = new StackFrame[parcelableStack.length];
+    for (int i = 0; i < parcelableStack.length; i++) {
+      stack[i] = (StackFrame) parcelableStack[i];
+    }
+    return stack;
+  }
 }

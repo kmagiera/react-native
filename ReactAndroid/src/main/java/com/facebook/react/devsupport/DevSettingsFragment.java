@@ -9,18 +9,27 @@
 
 package com.facebook.react.devsupport;
 
+import android.graphics.Color;
 import android.os.Bundle;
-import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
+import android.support.annotation.Nullable;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 
 import com.facebook.react.R;
-import com.facebook.react.common.DebugServerException;
 
 /**
- * Activity that display developers settings. Should be added to the debug manifest of the app. Can
- * be triggered through the developers option menu displayed by {@link DevSupportManager}.
+ * Fragment that displays developers settings. Used by {@link DevSupportActivity}.
  */
 public class DevSettingsFragment extends PreferenceFragment {
+
+  @Override
+  public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    View view = super.onCreateView(inflater, container, savedInstanceState);
+    view.setBackgroundColor(Color.WHITE);
+    return view;
+  }
 
   @Override
   public void onCreate(Bundle savedInstanceState) {

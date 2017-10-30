@@ -88,7 +88,7 @@ class RNTesterApp extends React.Component<Props, RNTesterNavigationState> {
   }
 
   render() {
-    View.dupa();
+    // View.dupa();
     if (!this.state) {
       return null;
     }
@@ -181,6 +181,8 @@ class RNTesterApp extends React.Component<Props, RNTesterNavigationState> {
   }
 
   _handleAction = (action: Object): boolean => {
+    const nul = null;
+    nul.redboxing();
     this.drawer && this.drawer.closeDrawer();
     const newState = RNTesterNavigationReducer(this.state, action);
     if (this.state !== newState) {

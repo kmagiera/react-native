@@ -10,7 +10,6 @@
 package com.facebook.react.devsupport;
 
 import android.app.ActivityManager;
-import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -20,9 +19,9 @@ import android.content.pm.PackageManager;
 import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.util.Log;
 import android.util.Pair;
 import android.widget.Toast;
+
 import com.facebook.common.logging.FLog;
 import com.facebook.debug.holder.PrinterHolder;
 import com.facebook.debug.tags.ReactDebugOverlayTags;
@@ -51,6 +50,7 @@ import com.facebook.react.devsupport.interfaces.StackFrame;
 import com.facebook.react.modules.debug.interfaces.DeveloperSettings;
 import com.facebook.react.packagerconnection.RequestHandler;
 import com.facebook.react.packagerconnection.Responder;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -61,7 +61,9 @@ import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
 import javax.annotation.Nullable;
+
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -119,7 +121,6 @@ public class DevSupportManagerImpl implements
   private final @Nullable String mJSAppBundleName;
   private final File mJSBundleTempFile;
   private final DefaultNativeModuleCallExceptionHandler mDefaultNativeModuleCallExceptionHandler;
-  private final DevLoadingViewController mDevLoadingViewController;
 
   private @Nullable DebugOverlayController mDebugOverlayController;
   private boolean mDevLoadingViewVisible = false;
@@ -225,7 +226,8 @@ public class DevSupportManagerImpl implements
       }
     };
 
-    mDevSupportActivityBroadcastReceiver = new DevSupportActivity.CallbackBroadcastReceiver() {
+    mDevSupportActivityBroadcastReceiver =
+            new DevSupportActivity.CallbackBroadcastReceiver(applicationContext) {
       @Override
       public void onDevOptionSelected(int which) {
         getOptions().get(which).onOptionSelected();
@@ -234,6 +236,16 @@ public class DevSupportManagerImpl implements
       @Override
       public void onReload() {
         handleReloadJS();
+      }
+
+      @Override
+      public void onReportRequested(
+              String title,
+              StackFrame[] stack,
+              RedBoxHandler.ReportCompletedListener listener) {
+        Assertions
+                .assertNotNull(mRedBoxHandler)
+                .reportRedbox(title, stack, getSourceUrl(), listener);
       }
     };
 
@@ -249,7 +261,6 @@ public class DevSupportManagerImpl implements
     setDevSupportEnabled(enableOnCreate);
 
     mRedBoxHandler = redBoxHandler;
-    mDevLoadingViewController = new DevLoadingViewController(applicationContext);
   }
 
   @Override
@@ -339,24 +350,23 @@ public class DevSupportManagerImpl implements
 
     updateLastErrorInfo(message, stack, errorCookie, ErrorType.JS);
 
-    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-    intent.putExtra("errorTitle", errorInfo.first);
-    intent.putExtra("stack", errorInfo.second);
+    boolean enableReporting = false;
     if (mRedBoxHandler != null) {
       mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.JS);
-      intent.putExtra("reporting", true);
+      enableReporting = true;
     }
-    mApplicationContext.startActivity(intent);
+    DevSupportActivity.startRedboxDialog(
+            mApplicationContext,
+            errorInfo.first,
+            errorInfo.second,
+            getSourceUrl(),
+            enableReporting);
   }
 
   @Override
   public void hideRedboxDialog() {
     // dismiss redbox if exists
-    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-    intent.putExtra("close", true);
-    mApplicationContext.startActivity(intent);
+    DevSupportActivity.closeAll(mApplicationContext);
   }
 
   private void showNewError(
@@ -369,17 +379,17 @@ public class DevSupportManagerImpl implements
     // Only report native errors here. JS errors are reported
     // inside {@link #updateJSError} after source mapping.
 
-    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-    intent.putExtra("errorTitle", errorInfo.first);
-    intent.putExtra("stack", errorInfo.second);
+    boolean enableReporting = false;
     if (mRedBoxHandler != null && errorType == ErrorType.NATIVE) {
       mRedBoxHandler.handleRedbox(message, stack, RedBoxHandler.ErrorType.NATIVE);
-      intent.putExtra("reporting", true);
-    } else {
-      intent.putExtra("reporting", false);
+      enableReporting = true;
     }
-    mApplicationContext.startActivity(intent);
+    DevSupportActivity.startRedboxDialog(
+            mApplicationContext,
+            errorInfo.first,
+            errorInfo.second,
+            getSourceUrl(),
+            enableReporting);
   }
 
   private List<DevOptionHandler> getOptions() {
@@ -489,9 +499,7 @@ public class DevSupportManagerImpl implements
 
           @Override
           public void onOptionSelected() {
-            Intent intent = new Intent(mApplicationContext, DevSettingsFragment.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            mApplicationContext.startActivity(intent);
+            DevSupportActivity.startDevSettings(mApplicationContext);
           }
         });
 
@@ -507,14 +515,13 @@ public class DevSupportManagerImpl implements
     if (!mIsDevSupportEnabled || ActivityManager.isUserAMonkey()) {
       return;
     }
-    Intent intent = new Intent(mApplicationContext, DevSupportActivity.class);
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
     List<String> optionNames = new ArrayList<>();
     for (DevOptionHandler option : getOptions()) {
       optionNames.add(option.getOptionName(mApplicationContext));
     }
-    intent.putExtra("options", optionNames.toArray(new String[0]));
-    mApplicationContext.startActivity(intent);
+    DevSupportActivity.startDevOptionsDialog(
+            mApplicationContext,
+            optionNames.toArray(new String[0]));
   }
 
   /**
@@ -684,7 +691,7 @@ public class DevSupportManagerImpl implements
     if (mDevSettings.isRemoteJSDebugEnabled()) {
       PrinterHolder.getPrinter()
           .logMessage(ReactDebugOverlayTags.RN_CORE, "RNCore: load from Proxy");
-      mDevLoadingViewController.showForRemoteJSEnabled();
+      DevSupportActivity.startDevLoadingForRemoteJSEnabled(mApplicationContext);
       mDevLoadingViewVisible = true;
       reloadJSInProxyMode();
     } else {
@@ -856,13 +863,14 @@ public class DevSupportManagerImpl implements
       @Override
       public void onSuccess() {
         future.set(true);
-        mDevLoadingViewController.hide();
+
+        DevSupportActivity.startDevLoadingHide(mApplicationContext);
         mDevLoadingViewVisible = false;
       }
 
       @Override
       public void onFailure(final Throwable cause) {
-        mDevLoadingViewController.hide();
+        DevSupportActivity.startDevLoadingHide(mApplicationContext);
         mDevLoadingViewVisible = false;
         FLog.e(ReactConstants.TAG, "Unable to connect to remote debugger", cause);
         future.setException(
@@ -875,7 +883,7 @@ public class DevSupportManagerImpl implements
   public void reloadJSFromServer(final String bundleURL) {
     ReactMarker.logMarker(ReactMarkerConstants.DOWNLOAD_START);
 
-    mDevLoadingViewController.showForUrl(bundleURL);
+    DevSupportActivity.startDevLoadingForUrl(mApplicationContext, bundleURL);
     mDevLoadingViewVisible = true;
 
     final BundleDownloader.BundleInfo bundleInfo = new BundleDownloader.BundleInfo();
@@ -884,7 +892,7 @@ public class DevSupportManagerImpl implements
         new DevBundleDownloadListener() {
           @Override
           public void onSuccess() {
-            mDevLoadingViewController.hide();
+            DevSupportActivity.startDevLoadingHide(mApplicationContext);
             mDevLoadingViewVisible = false;
             if (mBundleDownloadListener != null) {
               mBundleDownloadListener.onSuccess();
@@ -901,7 +909,7 @@ public class DevSupportManagerImpl implements
 
           @Override
           public void onProgress(@Nullable final String status, @Nullable final Integer done, @Nullable final Integer total) {
-            mDevLoadingViewController.updateProgress(status, done, total);
+            DevSupportActivity.startDevLoadingUpdateProgress(mApplicationContext, status, done, total);
             if (mBundleDownloadListener != null) {
               mBundleDownloadListener.onProgress(status, done, total);
             }
@@ -909,7 +917,7 @@ public class DevSupportManagerImpl implements
 
           @Override
           public void onFailure(final Exception cause) {
-            mDevLoadingViewController.hide();
+            DevSupportActivity.startDevLoadingHide(mApplicationContext);
             mDevLoadingViewVisible = false;
             if (mBundleDownloadListener != null) {
               mBundleDownloadListener.onFailure(cause);
@@ -974,7 +982,7 @@ public class DevSupportManagerImpl implements
 
       // show the dev loading if it should be
       if (mDevLoadingViewVisible) {
-        mDevLoadingViewController.show();
+        DevSupportActivity.startDevLoadingShow(mApplicationContext);
       }
 
       mDevServerHelper.openPackagerConnection(this.getClass().getSimpleName(), this);
@@ -1009,18 +1017,8 @@ public class DevSupportManagerImpl implements
       }
 
       // hide redbox or dev options dialog
+      DevSupportActivity.closeAll(mApplicationContext);
 
-//      if (mRedBoxDialog != null) {
-//        mRedBoxDialog.dismiss();
-//      }
-
-      // hide dev options dialog
-//      if (mDevOptionsDialog != null) {
-//        mDevOptionsDialog.dismiss();
-//      }
-
-      // hide loading view
-      mDevLoadingViewController.hide();
       mDevServerHelper.closePackagerConnection();
       mDevServerHelper.stopPollingOnChangeEndpoint();
     }

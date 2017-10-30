@@ -3,8 +3,9 @@
           package="com.facebook.react.devsupport">
   <application>
     <!-- This activity will be removed for release builds -->
-    <activity android:name="com.facebook.react.devsupport.DevSettingsFragment"
+    <activity android:name="com.facebook.react.devsupport.DevSupportActivity"
               android:exported="false"
+              android:theme="@style/Theme.Catalyst.DevSupport"
     />
   </application>
 </manifest>
