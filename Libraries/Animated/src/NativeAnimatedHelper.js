@@ -28,6 +28,7 @@ type EndCallback = (result: EndResult) => void;
 type EventMapping = {
   nativeEventPath: Array<string>,
   animatedValueTag: ?number,
+  eventFilters: ?Array<string | number>,
 };
 
 let nativeEventEmitter;

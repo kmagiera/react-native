@@ -34,28 +34,32 @@ function attachNativeEvent(
   // key path inside the `nativeEvent` object. Ex.: ['contentOffset', 'x'].
   const eventMappings = [];
 
-  const traverse = (value, path) => {
+  const traverse = (value, path, filters) => {
     if (value instanceof AnimatedValue) {
       value.__makeNative();
 
       eventMappings.push({
         nativeEventPath: path,
+        eventFilters: filters,
         animatedValueTag: value.__getNativeTag(),
       });
     } else if (typeof value === 'object') {
       for (const key in value) {
-        traverse(value[key], path.concat(key));
+        traverse(value[key], path.concat(key), filters);
       }
+    } else {
+      // when valkue is a number or string then we treat it as a filter
+      filters.push(path.concat(value));
     }
   };
 
-  invariant(
-    argMapping[0] && argMapping[0].nativeEvent,
-    'Native driven events only support animated values contained inside `nativeEvent`.',
-  );
-
-  // Assume that the event containing `nativeEvent` is always the first argument.
-  traverse(argMapping[0].nativeEvent, []);
+  argMapping.forEach(argMap => {
+    invariant(
+      argMap.nativeEvent,
+      'Native driven events only support animated values contained inside `nativeEvent`.',
+    );
+    traverse(argMap.nativeEvent, [], []);
+  });
 
   const viewTag = ReactNative.findNodeHandle(viewRef);
 

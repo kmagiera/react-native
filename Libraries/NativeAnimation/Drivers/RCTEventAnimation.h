@@ -16,6 +16,7 @@
 @property (nonatomic, readonly, weak) RCTValueAnimatedNode *valueNode;
 
 - (instancetype)initWithEventPath:(NSArray<NSString *> *)eventPath
+                          filters:(NSArray<NSArray *> *)filters
                         valueNode:(RCTValueAnimatedNode *)valueNode;
 
 - (void)updateWithEvent:(id<RCTEvent>)event;

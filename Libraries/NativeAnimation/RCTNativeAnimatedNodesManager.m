@@ -299,9 +299,12 @@
   }
 
   NSArray<NSString *> *eventPath = [RCTConvert NSStringArray:eventMapping[@"nativeEventPath"]];
+  NSArray<NSArray *> *eventFilters = [RCTConvert NSArray:eventMapping[@"eventFilters"]];
 
-  RCTEventAnimation *driver =
-    [[RCTEventAnimation alloc] initWithEventPath:eventPath valueNode:(RCTValueAnimatedNode *)node];
+  RCTEventAnimation *driver = [[RCTEventAnimation alloc]
+                               initWithEventPath:eventPath
+                               filters:eventFilters
+                               valueNode:(RCTValueAnimatedNode *)node];
 
   NSString *key = [NSString stringWithFormat:@"%@%@", viewTag, eventName];
   if (_eventDrivers[key] != nil) {
