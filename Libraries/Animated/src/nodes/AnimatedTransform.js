@@ -36,7 +36,7 @@ class AnimatedTransform extends AnimatedWithChildren {
     });
   }
 
-  __getValue(): Array<Object> {
+  __onEvaluate() {
     return this._transforms.map(transform => {
       const result = {};
       for (const key in transform) {
@@ -44,22 +44,6 @@ class AnimatedTransform extends AnimatedWithChildren {
         if (value instanceof AnimatedNode) {
           result[key] = value.__getValue();
         } else {
-          result[key] = value;
-        }
-      }
-      return result;
-    });
-  }
-
-  __getAnimatedValue(): Array<Object> {
-    return this._transforms.map(transform => {
-      const result = {};
-      for (const key in transform) {
-        const value = transform[key];
-        if (value instanceof AnimatedNode) {
-          result[key] = value.__getAnimatedValue();
-        } else {
-          // All transform components needed to recompose matrix
           result[key] = value;
         }
       }
@@ -76,6 +60,19 @@ class AnimatedTransform extends AnimatedWithChildren {
         }
       }
     });
+  }
+
+  __getParams() {
+    const params = [];
+    this._transforms.forEach(transform => {
+      for (const key in transform) {
+        const value = transform[key];
+        if (value instanceof AnimatedNode) {
+          params.push(value);
+        }
+      }
+    });
+    return params;
   }
 
   __detach(): void {

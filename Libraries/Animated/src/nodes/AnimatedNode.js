@@ -13,6 +13,7 @@
 'use strict';
 
 const NativeAnimatedHelper = require('../NativeAnimatedHelper');
+const CoreAnimated = require('../CoreAnimated');
 
 const invariant = require('fbjs/lib/invariant');
 
@@ -26,7 +27,10 @@ class AnimatedNode {
       this.__nativeTag = undefined;
     }
   }
-  __getValue(): any {}
+  __getValue() {
+    return CoreAnimated.evaluate(this);
+  }
+  __onEvaluate() {}
   __getAnimatedValue(): any {
     return this.__getValue();
   }
@@ -37,6 +41,8 @@ class AnimatedNode {
   }
 
   /* Methods and props used by native Animated impl */
+  __lastLoopTs = 0;
+  __memoizedValue = null;
   __isNative: boolean;
   __nativeTag: ?number;
   __makeNative() {

@@ -17,6 +17,7 @@ const AnimatedNode = require('./AnimatedNode');
 const AnimatedWithChildren = require('./AnimatedWithChildren');
 const InteractionManager = require('InteractionManager');
 const NativeAnimatedHelper = require('../NativeAnimatedHelper');
+const CoreAnimated = require('../CoreAnimated');
 
 import type Animation, {EndCallback} from '../animations/Animation';
 import type {InterpolationConfigType} from './AnimatedInterpolation';
@@ -318,9 +319,10 @@ class AnimatedValue extends AnimatedWithChildren {
 
   _updateValue(value: number, flush: boolean): void {
     this._value = value;
-    if (flush) {
-      _flush(this);
-    }
+    CoreAnimated.onNodeUpdated(this);
+    // if (flush) {
+    //   _flush(this);
+    // }
     for (const key in this._listeners) {
       this._listeners[key]({value: this.__getValue()});
     }

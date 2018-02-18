@@ -151,7 +151,7 @@ function createAnimatedComponent(Component: any): any {
     }
 
     render() {
-      const props = this._propsAnimated.__getValue();
+      const props = this._propsAnimated.__getProps();
       return (
         <Component
           {...props}

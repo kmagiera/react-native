@@ -17,6 +17,7 @@ const AnimatedValueXY = require('../nodes/AnimatedValueXY');
 const Animation = require('./Animation');
 
 const {shouldUseNativeDriver} = require('../NativeAnimatedHelper');
+const {wantNextFrame} = require('../CoreAnimated');
 
 import type {AnimationConfig, EndCallback} from './Animation';
 
@@ -98,6 +99,7 @@ class TimingAnimation extends Animation {
       // Animations that sometimes have 0 duration and sometimes do not
       // still need to use the native driver when duration is 0 so as to
       // not cause intermixed JS and native animations.
+      console.log('START');
       if (this._duration === 0 && !this._useNativeDriver) {
         this._onUpdate(this._toValue);
         this.__debouncedOnEnd({finished: true});
@@ -106,9 +108,7 @@ class TimingAnimation extends Animation {
         if (this._useNativeDriver) {
           this.__startNativeAnimation(animatedValue);
         } else {
-          this._animationFrame = requestAnimationFrame(
-            this.onUpdate.bind(this),
-          );
+          wantNextFrame(this.onUpdate.bind(this));
         }
       }
     };
@@ -139,7 +139,7 @@ class TimingAnimation extends Animation {
           (this._toValue - this._fromValue),
     );
     if (this.__active) {
-      this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+      wantNextFrame(this.onUpdate.bind(this));
     }
   }
 
@@ -147,7 +147,7 @@ class TimingAnimation extends Animation {
     super.stop();
     this.__active = false;
     clearTimeout(this._timeout);
-    global.cancelAnimationFrame(this._animationFrame);
+    // global.cancelAnimationFrame(this._animationFrame);
     this.__debouncedOnEnd({finished: false});
   }
 }

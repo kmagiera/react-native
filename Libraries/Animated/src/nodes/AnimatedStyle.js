@@ -55,17 +55,16 @@ class AnimatedStyle extends AnimatedWithChildren {
     return updatedStyle;
   }
 
-  __getValue(): Object {
+  __getProps(): Object {
     return this._walkStyleAndGetValues(this._style);
   }
 
-  // Recursively get animated values for nested styles (like iOS's shadowOffset)
   _walkStyleAndGetAnimatedValues(style) {
     const updatedStyle = {};
     for (const key in style) {
       const value = style[key];
       if (value instanceof AnimatedNode) {
-        updatedStyle[key] = value.__getAnimatedValue();
+        updatedStyle[key] = value.__getValue();
       } else if (value && !Array.isArray(value) && typeof value === 'object') {
         // Support animating nested values (for example: shadowOffset.height)
         updatedStyle[key] = this._walkStyleAndGetAnimatedValues(value);
@@ -74,7 +73,7 @@ class AnimatedStyle extends AnimatedWithChildren {
     return updatedStyle;
   }
 
-  __getAnimatedValue(): Object {
+  __onEvaluate() {
     return this._walkStyleAndGetAnimatedValues(this._style);
   }
 
@@ -85,6 +84,17 @@ class AnimatedStyle extends AnimatedWithChildren {
         value.__addChild(this);
       }
     }
+  }
+
+  __getParams() {
+    const params = [];
+    for (const key in this._style) {
+      const value = this._style[key];
+      if (value instanceof AnimatedNode) {
+        params.push(value);
+      }
+    }
+    return params;
   }
 
   __detach(): void {

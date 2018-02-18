@@ -38,7 +38,7 @@ class AnimatedProps extends AnimatedNode {
     this.__attach();
   }
 
-  __getValue(): Object {
+  __getProps(): Object {
     const props = {};
     for (const key in this._props) {
       const value = this._props[key];
@@ -46,7 +46,7 @@ class AnimatedProps extends AnimatedNode {
         if (!value.__isNative || value instanceof AnimatedStyle) {
           // We cannot use value of natively driven nodes this way as the value we have access from
           // JS may not be up to date.
-          props[key] = value.__getValue();
+          props[key] = value.__getProps();
         }
       } else if (value instanceof AnimatedEvent) {
         props[key] = value.__getHandler();
@@ -57,12 +57,12 @@ class AnimatedProps extends AnimatedNode {
     return props;
   }
 
-  __getAnimatedValue(): Object {
+  __onEvaluate(): Object {
     const props = {};
     for (const key in this._props) {
       const value = this._props[key];
       if (value instanceof AnimatedNode) {
-        props[key] = value.__getAnimatedValue();
+        props[key] = value.__getValue();
       }
     }
     return props;
@@ -75,6 +75,17 @@ class AnimatedProps extends AnimatedNode {
         value.__addChild(this);
       }
     }
+  }
+
+  __getParams() {
+    const params = [];
+    for (const key in this._props) {
+      const value = this._props[key];
+      if (value instanceof AnimatedNode) {
+        params.push(value);
+      }
+    }
+    return params;
   }
 
   __detach(): void {
