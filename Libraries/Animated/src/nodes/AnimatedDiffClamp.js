@@ -14,11 +14,11 @@
 
 const AnimatedInterpolation = require('./AnimatedInterpolation');
 const AnimatedNode = require('./AnimatedNode');
-const AnimatedWithChildren = require('./AnimatedWithChildren');
+const AnimatedWithInput = require('./AnimatedWithInput');
 
 import type {InterpolationConfigType} from './AnimatedInterpolation';
 
-class AnimatedDiffClamp extends AnimatedWithChildren {
+class AnimatedDiffClamp extends AnimatedWithInput {
   _a: AnimatedNode;
   _min: number;
   _max: number;

@@ -14,7 +14,7 @@
 'use strict';
 
 const AnimatedNode = require('./AnimatedNode');
-const AnimatedWithChildren = require('./AnimatedWithChildren');
+const AnimatedWithInput = require('./AnimatedWithInput');
 const NativeAnimatedHelper = require('../NativeAnimatedHelper');
 
 const invariant = require('fbjs/lib/invariant');
@@ -307,7 +307,7 @@ function checkInfiniteRange(name: string, arr: Array<number>) {
   );
 }
 
-class AnimatedInterpolation extends AnimatedWithChildren {
+class AnimatedInterpolation extends AnimatedWithInput {
   // Export for testing.
   static __createInterpolation = createInterpolation;
 

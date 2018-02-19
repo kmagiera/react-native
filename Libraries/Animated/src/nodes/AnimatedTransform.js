@@ -13,7 +13,7 @@
 'use strict';
 
 const AnimatedNode = require('./AnimatedNode');
-const AnimatedWithChildren = require('./AnimatedWithChildren');
+const AnimatedWithInput = require('./AnimatedWithInput');
 const NativeAnimatedHelper = require('../NativeAnimatedHelper');
 
 function extractAnimatedParentNodes(transforms) {
@@ -30,7 +30,7 @@ function extractAnimatedParentNodes(transforms) {
   return parents;
 }
 
-class AnimatedTransform extends AnimatedWithChildren {
+class AnimatedTransform extends AnimatedWithInput {
   _transforms: Array<Object>;
 
   constructor(transforms: Array<Object>) {

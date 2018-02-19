@@ -1,8 +1,8 @@
 'use strict';
 
-const AnimatedWithChildren = require('./AnimatedWithChildren');
+const AnimatedWithInput = require('./AnimatedWithInput');
 
-class AnimatedIf extends AnimatedWithChildren {
+class AnimatedIf extends AnimatedWithInput {
   _condition;
   _ifBlock;
   _elseBlock;

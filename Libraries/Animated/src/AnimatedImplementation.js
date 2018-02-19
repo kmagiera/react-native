@@ -14,14 +14,11 @@
 'use strict';
 
 const {AnimatedEvent, attachNativeEvent} = require('./AnimatedEvent');
-const AnimatedAddition = require('./nodes/AnimatedAddition');
 const AnimatedDiffClamp = require('./nodes/AnimatedDiffClamp');
 const AnimatedCond = require('./nodes/AnimatedIf');
-const AnimatedDivision = require('./nodes/AnimatedDivision');
-const AnimatedFunctor = require('./nodes/AnimatedFunctor');
+const AnimatedSet = require('./nodes/AnimatedSet');
 const AnimatedInterpolation = require('./nodes/AnimatedInterpolation');
-const AnimatedModulo = require('./nodes/AnimatedModulo');
-const AnimatedMultiplication = require('./nodes/AnimatedMultiplication');
+const AnimatedOp = require('./nodes/AnimatedOp');
 const AnimatedNode = require('./nodes/AnimatedNode');
 const AnimatedProps = require('./nodes/AnimatedProps');
 const AnimatedTracking = require('./nodes/AnimatedTracking');
@@ -52,21 +49,25 @@ type CompositeAnimation = {
 };
 
 const add = function(a: AnimatedNode | number, b: AnimatedNode | number) {
-  return new AnimatedFunctor([a, b], ([a, b]) => a + b);
+  return new AnimatedOp([a, b], ([a, b]) => a + b);
 };
 
 const divide = function(
   a: AnimatedNode | number,
   b: AnimatedNode | number,
 ): AnimatedDivision {
-  return new AnimatedFunctor([a, b], ([a, b]) => a / b);
+  return new AnimatedOp([a, b], ([a, b]) => a / b);
 };
 
 const multiply = function(
   a: AnimatedNode | number,
   b: AnimatedNode | number,
 ): AnimatedMultiplication {
-  return new AnimatedFunctor([a, b], ([a, b]) => a * b);
+  return new AnimatedOp([a, b], ([a, b]) => a * b);
+};
+
+const set = function(what, value) {
+  return new AnimatedSet(what, value);
 };
 
 const cond = function(cond, ifBlock, elseBlock) {
@@ -74,27 +75,27 @@ const cond = function(cond, ifBlock, elseBlock) {
 };
 
 const eq = function(a, b) {
-  return new AnimatedFunctor([a, b], ([a, b]) => a === b);
+  return new AnimatedOp([a, b], ([a, b]) => a === b);
 };
 
 const lessThan = function(a, b) {
-  return new AnimatedFunctor([a, b], ([a, b]) => a < b);
+  return new AnimatedOp([a, b], ([a, b]) => a < b);
 };
 
 const or = function(a, b) {
-  return new AnimatedFunctor([a, b], ([a, b]) => a || b);
+  return new AnimatedOp([a, b], ([a, b]) => a || b);
 };
 
 const and = function(a, b) {
-  return new AnimatedFunctor([a, b], ([a, b]) => a && b);
+  return new AnimatedOp([a, b], ([a, b]) => a && b);
 };
 
 const block = function(items) {
-  return new AnimatedFunctor(items, values => values[values.length - 1]);
+  return new AnimatedOp(items, values => values[values.length - 1]);
 };
 
 const modulo = function(a: AnimatedNode, modulus: number): AnimatedModulo {
-  return new AnimatedFunctor([a, b], ([a, b]) => (a % b + b) % b);
+  return new AnimatedOp([a, b], ([a, b]) => (a % b + b) % b);
 };
 
 const diffClamp = function(

@@ -14,12 +14,12 @@
 
 const AnimatedNode = require('./AnimatedNode');
 const AnimatedTransform = require('./AnimatedTransform');
-const AnimatedWithChildren = require('./AnimatedWithChildren');
+const AnimatedWithInput = require('./AnimatedWithInput');
 const NativeAnimatedHelper = require('../NativeAnimatedHelper');
 
 const flattenStyle = require('flattenStyle');
 
-class AnimatedStyle extends AnimatedWithChildren {
+class AnimatedStyle extends AnimatedWithInput {
   _style: Object;
 
   constructor(style: any) {

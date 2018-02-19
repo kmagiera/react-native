@@ -6,7 +6,7 @@
  * LICENSE file in the root directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  *
- * @providesModule AnimatedWithChildren
+ * @providesModule AnimatedWithInput
  * @flow
  * @format
  */
@@ -15,23 +15,25 @@
 const AnimatedNode = require('./AnimatedNode');
 const NativeAnimatedHelper = require('../NativeAnimatedHelper');
 
-class AnimatedWithChildren extends AnimatedNode {
-  _parentNodes;
+class AnimatedWithInput extends AnimatedNode {
+  __inputNodes;
 
-  constructor(parentNodes) {
+  constructor(inputNodes) {
     super();
-    this._parentNodes = parentNodes || [];
+    this.__inputNodes = inputNodes;
   }
 
   __attach(): void {
     super.__attach();
-    this._parentNodes.forEach(node => node.__addChild(this));
+    this.__inputNodes &&
+      this.__inputNodes.forEach(node => node.__addChild(this));
   }
 
   __detach(): void {
-    this._parentNodes.forEach(node => node.__removeChild(this));
+    this.__inputNodes &&
+      this.__inputNodes.forEach(node => node.__removeChild(this));
     super.__detach();
   }
 }
 
-module.exports = AnimatedWithChildren;
+module.exports = AnimatedWithInput;

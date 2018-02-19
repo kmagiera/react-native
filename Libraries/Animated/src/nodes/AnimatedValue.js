@@ -14,7 +14,7 @@
 
 const AnimatedInterpolation = require('./AnimatedInterpolation');
 const AnimatedNode = require('./AnimatedNode');
-const AnimatedWithChildren = require('./AnimatedWithChildren');
+const AnimatedWithInput = require('./AnimatedWithInput');
 const InteractionManager = require('InteractionManager');
 const NativeAnimatedHelper = require('../NativeAnimatedHelper');
 const CoreAnimated = require('../CoreAnimated');
@@ -36,7 +36,7 @@ let _uniqueId = 1;
  *
  * See http://facebook.github.io/react-native/docs/animatedvalue.html
  */
-class AnimatedValue extends AnimatedWithChildren {
+class AnimatedValue extends AnimatedWithInput {
   _value: number;
   _startingValue: number;
   _offset: number;

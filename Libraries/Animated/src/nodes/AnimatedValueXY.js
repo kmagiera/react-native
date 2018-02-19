@@ -13,7 +13,7 @@
 'use strict';
 
 const AnimatedValue = require('./AnimatedValue');
-const AnimatedWithChildren = require('./AnimatedWithChildren');
+const AnimatedWithInput = require('./AnimatedWithInput');
 
 const invariant = require('fbjs/lib/invariant');
 
@@ -27,7 +27,7 @@ let _uniqueId = 1;
  *
  * See http://facebook.github.io/react-native/docs/animatedvaluexy.html
  */
-class AnimatedValueXY extends AnimatedWithChildren {
+class AnimatedValueXY extends AnimatedWithInput {
   x: AnimatedValue;
   y: AnimatedValue;
   _listeners: {[key: string]: {x: string, y: string}};
