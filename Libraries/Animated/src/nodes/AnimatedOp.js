@@ -8,7 +8,7 @@ class AnimatedOp extends AnimatedWithInput {
   _processor;
 
   constructor(inputNodes, processor) {
-    super(inputNodes.filter(node => node instanceof AnimatedNode));
+    super(inputNodes);
     this._inputNodes = inputNodes;
     this._processor = processor;
   }

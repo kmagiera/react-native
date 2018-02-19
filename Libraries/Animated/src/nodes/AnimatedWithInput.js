@@ -20,7 +20,8 @@ class AnimatedWithInput extends AnimatedNode {
 
   constructor(inputNodes) {
     super();
-    this.__inputNodes = inputNodes;
+    this.__inputNodes =
+      inputNodes && inputNodes.filter(node => node instanceof AnimatedNode);
   }
 
   __attach(): void {

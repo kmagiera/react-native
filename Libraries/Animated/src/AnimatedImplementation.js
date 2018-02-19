@@ -15,7 +15,7 @@
 
 const {AnimatedEvent, attachNativeEvent} = require('./AnimatedEvent');
 const AnimatedDiffClamp = require('./nodes/AnimatedDiffClamp');
-const AnimatedCond = require('./nodes/AnimatedIf');
+const AnimatedCond = require('./nodes/AnimatedCond');
 const AnimatedSet = require('./nodes/AnimatedSet');
 const AnimatedInterpolation = require('./nodes/AnimatedInterpolation');
 const AnimatedOp = require('./nodes/AnimatedOp');
