@@ -29,17 +29,13 @@ class AnimatedAddition extends AnimatedWithChildren {
     this._b = typeof b === 'number' ? new AnimatedValue(b) : b;
   }
 
-  __getParams() {
-    return [this._a, this._b];
-  }
-
   __makeNative() {
     this._a.__makeNative();
     this._b.__makeNative();
     super.__makeNative();
   }
 
-  __getValue(): number {
+  __onEvaluate() {
     return this._a.__getValue() + this._b.__getValue();
   }
 

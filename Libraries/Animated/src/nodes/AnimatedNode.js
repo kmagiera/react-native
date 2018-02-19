@@ -34,10 +34,42 @@ class AnimatedNode {
   __getAnimatedValue(): any {
     return this.__getValue();
   }
-  __addChild(child: AnimatedNode) {}
-  __removeChild(child: AnimatedNode) {}
+
   __getChildren(): Array<AnimatedNode> {
-    return [];
+    return this.__children;
+  }
+
+  __addChild(child: AnimatedNode): void {
+    if (this.__children.length === 0) {
+      this.__attach();
+    }
+    this.__children.push(child);
+    if (this.__isNative) {
+      // Only accept "native" animated nodes as children
+      child.__makeNative();
+      NativeAnimatedHelper.API.connectAnimatedNodes(
+        this.__getNativeTag(),
+        child.__getNativeTag(),
+      );
+    }
+  }
+
+  __removeChild(child: AnimatedNode): void {
+    const index = this.__children.indexOf(child);
+    if (index === -1) {
+      console.warn("Trying to remove a child that doesn't exist");
+      return;
+    }
+    if (this.__isNative && child.__isNative) {
+      NativeAnimatedHelper.API.disconnectAnimatedNodes(
+        this.__getNativeTag(),
+        child.__getNativeTag(),
+      );
+    }
+    this.__children.splice(index, 1);
+    if (this.__children.length === 0) {
+      this.__detach();
+    }
   }
 
   /* Methods and props used by native Animated impl */
@@ -45,6 +77,7 @@ class AnimatedNode {
   __memoizedValue = null;
   __isNative: boolean;
   __nativeTag: ?number;
+  __children = [];
   __makeNative() {
     if (!this.__isNative) {
       throw new Error('This node cannot be made a "native" animated node');

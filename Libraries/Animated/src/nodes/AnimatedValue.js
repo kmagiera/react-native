@@ -29,42 +29,6 @@ type ValueListenerCallback = (state: {value: number}) => void;
 let _uniqueId = 1;
 
 /**
- * Animated works by building a directed acyclic graph of dependencies
- * transparently when you render your Animated components.
- *
- *               new Animated.Value(0)
- *     .interpolate()        .interpolate()    new Animated.Value(1)
- *         opacity               translateY      scale
- *          style                         transform
- *         View#234                         style
- *                                         View#123
- *
- * A) Top Down phase
- * When an Animated.Value is updated, we recursively go down through this
- * graph in order to find leaf nodes: the views that we flag as needing
- * an update.
- *
- * B) Bottom Up phase
- * When a view is flagged as needing an update, we recursively go back up
- * in order to build the new value that it needs. The reason why we need
- * this two-phases process is to deal with composite props such as
- * transform which can receive values from multiple parents.
- */
-function _flush(rootNode: AnimatedValue): void {
-  const animatedStyles = new Set();
-  function findAnimatedStyles(node) {
-    if (typeof node.update === 'function') {
-      animatedStyles.add(node);
-    } else {
-      node.__getChildren().forEach(findAnimatedStyles);
-    }
-  }
-  findAnimatedStyles(rootNode);
-  /* $FlowFixMe */
-  animatedStyles.forEach(animatedStyle => animatedStyle.update());
-}
-
-/**
  * Standard value for driving animations.  One `Animated.Value` can drive
  * multiple properties in a synchronized fashion, but can only be driven by one
  * mechanism at a time.  Using a new mechanism (e.g. starting a new animation,
@@ -320,9 +284,6 @@ class AnimatedValue extends AnimatedWithChildren {
   _updateValue(value: number, flush: boolean): void {
     this._value = value;
     CoreAnimated.onNodeUpdated(this);
-    // if (flush) {
-    //   _flush(this);
-    // }
     for (const key in this._listeners) {
       this._listeners[key]({value: this.__getValue()});
     }

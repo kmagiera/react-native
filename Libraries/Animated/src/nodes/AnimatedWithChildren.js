@@ -16,61 +16,21 @@ const AnimatedNode = require('./AnimatedNode');
 const NativeAnimatedHelper = require('../NativeAnimatedHelper');
 
 class AnimatedWithChildren extends AnimatedNode {
-  _children: Array<AnimatedNode>;
+  _parentNodes;
 
-  constructor() {
+  constructor(parentNodes) {
     super();
-    this._children = [];
+    this._parentNodes = parentNodes || [];
   }
 
-  __makeNative() {
-    if (!this.__isNative) {
-      this.__isNative = true;
-      for (const child of this._children) {
-        child.__makeNative();
-        NativeAnimatedHelper.API.connectAnimatedNodes(
-          this.__getNativeTag(),
-          child.__getNativeTag(),
-        );
-      }
-    }
+  __attach(): void {
+    super.__attach();
+    this._parentNodes.forEach(node => node.__addChild(this));
   }
 
-  __addChild(child: AnimatedNode): void {
-    if (this._children.length === 0) {
-      this.__attach();
-    }
-    this._children.push(child);
-    if (this.__isNative) {
-      // Only accept "native" animated nodes as children
-      child.__makeNative();
-      NativeAnimatedHelper.API.connectAnimatedNodes(
-        this.__getNativeTag(),
-        child.__getNativeTag(),
-      );
-    }
-  }
-
-  __removeChild(child: AnimatedNode): void {
-    const index = this._children.indexOf(child);
-    if (index === -1) {
-      console.warn("Trying to remove a child that doesn't exist");
-      return;
-    }
-    if (this.__isNative && child.__isNative) {
-      NativeAnimatedHelper.API.disconnectAnimatedNodes(
-        this.__getNativeTag(),
-        child.__getNativeTag(),
-      );
-    }
-    this._children.splice(index, 1);
-    if (this._children.length === 0) {
-      this.__detach();
-    }
-  }
-
-  __getChildren(): Array<AnimatedNode> {
-    return this._children;
+  __detach(): void {
+    this._parentNodes.forEach(node => node.__removeChild(this));
+    super.__detach();
   }
 }
 

@@ -20,7 +20,9 @@ class AnimatedTransform extends AnimatedWithChildren {
   _transforms: Array<Object>;
 
   constructor(transforms: Array<Object>) {
-    super();
+    super(
+      Object.values(transforms).filter(value => value instanceof AnimatedNode),
+    );
     this._transforms = transforms;
   }
 
@@ -51,17 +53,6 @@ class AnimatedTransform extends AnimatedWithChildren {
     });
   }
 
-  __attach(): void {
-    this._transforms.forEach(transform => {
-      for (const key in transform) {
-        const value = transform[key];
-        if (value instanceof AnimatedNode) {
-          value.__addChild(this);
-        }
-      }
-    });
-  }
-
   __getParams() {
     const params = [];
     this._transforms.forEach(transform => {
@@ -73,18 +64,6 @@ class AnimatedTransform extends AnimatedWithChildren {
       }
     });
     return params;
-  }
-
-  __detach(): void {
-    this._transforms.forEach(transform => {
-      for (const key in transform) {
-        const value = transform[key];
-        if (value instanceof AnimatedNode) {
-          value.__removeChild(this);
-        }
-      }
-    });
-    super.__detach();
   }
 
   __getNativeConfig(): any {

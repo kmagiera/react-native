@@ -16,7 +16,9 @@
 const {AnimatedEvent, attachNativeEvent} = require('./AnimatedEvent');
 const AnimatedAddition = require('./nodes/AnimatedAddition');
 const AnimatedDiffClamp = require('./nodes/AnimatedDiffClamp');
+const AnimatedCond = require('./nodes/AnimatedIf');
 const AnimatedDivision = require('./nodes/AnimatedDivision');
+const AnimatedFunctor = require('./nodes/AnimatedFunctor');
 const AnimatedInterpolation = require('./nodes/AnimatedInterpolation');
 const AnimatedModulo = require('./nodes/AnimatedModulo');
 const AnimatedMultiplication = require('./nodes/AnimatedMultiplication');
@@ -49,29 +51,34 @@ type CompositeAnimation = {
   _isUsingNativeDriver: () => boolean,
 };
 
-const add = function(
-  a: AnimatedNode | number,
-  b: AnimatedNode | number,
-): AnimatedAddition {
-  return new AnimatedAddition(a, b);
+const add = function(a: AnimatedNode | number, b: AnimatedNode | number) {
+  return new AnimatedFunctor([a, b], ([a, b]) => a + b);
 };
 
 const divide = function(
   a: AnimatedNode | number,
   b: AnimatedNode | number,
 ): AnimatedDivision {
-  return new AnimatedDivision(a, b);
+  return new AnimatedFunctor([a, b], ([a, b]) => a / b);
 };
 
 const multiply = function(
   a: AnimatedNode | number,
   b: AnimatedNode | number,
 ): AnimatedMultiplication {
-  return new AnimatedMultiplication(a, b);
+  return new AnimatedFunctor([a, b], ([a, b]) => a * b);
+};
+
+const cond = function(cond, ifBlock, elseBlock) {
+  return new AnimatedCond(cond, ifBlock, elseBlock);
+};
+
+const block = function(items) {
+  return new AnimatedFunctor(items, values => values[values.length - 1]);
 };
 
 const modulo = function(a: AnimatedNode, modulus: number): AnimatedModulo {
-  return new AnimatedModulo(a, modulus);
+  return new AnimatedFunctor([a, b], ([a, b]) => (a % b + b) % b);
 };
 
 const diffClamp = function(
@@ -569,6 +576,9 @@ module.exports = {
    * See http://facebook.github.io/react-native/docs/animated.html#add
    */
   add,
+
+  cond,
+  block,
 
   /**
    * Creates a new Animated value composed by dividing the first Animated value

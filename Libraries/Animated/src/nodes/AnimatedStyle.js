@@ -23,7 +23,7 @@ class AnimatedStyle extends AnimatedWithChildren {
   _style: Object;
 
   constructor(style: any) {
-    super();
+    super(Object.values(style).filter(value => value instanceof AnimatedNode));
     style = flattenStyle(style) || {};
     if (style.transform) {
       style = {
@@ -77,15 +77,6 @@ class AnimatedStyle extends AnimatedWithChildren {
     return this._walkStyleAndGetAnimatedValues(this._style);
   }
 
-  __attach(): void {
-    for (const key in this._style) {
-      const value = this._style[key];
-      if (value instanceof AnimatedNode) {
-        value.__addChild(this);
-      }
-    }
-  }
-
   __getParams() {
     const params = [];
     for (const key in this._style) {
@@ -95,16 +86,6 @@ class AnimatedStyle extends AnimatedWithChildren {
       }
     }
     return params;
-  }
-
-  __detach(): void {
-    for (const key in this._style) {
-      const value = this._style[key];
-      if (value instanceof AnimatedNode) {
-        value.__removeChild(this);
-      }
-    }
-    super.__detach();
   }
 
   __makeNative() {

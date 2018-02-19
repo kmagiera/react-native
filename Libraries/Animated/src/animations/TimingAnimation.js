@@ -99,7 +99,6 @@ class TimingAnimation extends Animation {
       // Animations that sometimes have 0 duration and sometimes do not
       // still need to use the native driver when duration is 0 so as to
       // not cause intermixed JS and native animations.
-      console.log('START');
       if (this._duration === 0 && !this._useNativeDriver) {
         this._onUpdate(this._toValue);
         this.__debouncedOnEnd({finished: true});
