@@ -73,6 +73,22 @@ const cond = function(cond, ifBlock, elseBlock) {
   return new AnimatedCond(cond, ifBlock, elseBlock);
 };
 
+const eq = function(a, b) {
+  return new AnimatedFunctor([a, b], ([a, b]) => a === b);
+};
+
+const lessThan = function(a, b) {
+  return new AnimatedFunctor([a, b], ([a, b]) => a < b);
+};
+
+const or = function(a, b) {
+  return new AnimatedFunctor([a, b], ([a, b]) => a || b);
+};
+
+const and = function(a, b) {
+  return new AnimatedFunctor([a, b], ([a, b]) => a && b);
+};
+
 const block = function(items) {
   return new AnimatedFunctor(items, values => values[values.length - 1]);
 };
@@ -579,6 +595,10 @@ module.exports = {
 
   cond,
   block,
+  lessThan,
+  eq,
+  or,
+  and,
 
   /**
    * Creates a new Animated value composed by dividing the first Animated value
