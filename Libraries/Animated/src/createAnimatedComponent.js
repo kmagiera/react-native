@@ -105,9 +105,7 @@ function createAnimatedComponent(Component: any): any {
       ) {
         this.forceUpdate();
       } else if (!this._propsAnimated.__isNative) {
-        this._component.setNativeProps(
-          this._propsAnimated.__getAnimatedValue(),
-        );
+        this._component.setNativeProps(this._propsAnimated.__getValue());
       } else {
         throw new Error(
           'Attempting to run JS driven animation on animated ' +

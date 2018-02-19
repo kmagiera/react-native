@@ -16,13 +16,25 @@ const AnimatedNode = require('./AnimatedNode');
 const AnimatedWithChildren = require('./AnimatedWithChildren');
 const NativeAnimatedHelper = require('../NativeAnimatedHelper');
 
+function extractAnimatedParentNodes(transforms) {
+  const parents = [];
+  transforms.forEach(transform => {
+    const result = {};
+    for (const key in transform) {
+      const value = transform[key];
+      if (value instanceof AnimatedNode) {
+        parents.push(value);
+      }
+    }
+  });
+  return parents;
+}
+
 class AnimatedTransform extends AnimatedWithChildren {
   _transforms: Array<Object>;
 
   constructor(transforms: Array<Object>) {
-    super(
-      Object.values(transforms).filter(value => value instanceof AnimatedNode),
-    );
+    super(extractAnimatedParentNodes(transforms));
     this._transforms = transforms;
   }
 
@@ -38,13 +50,13 @@ class AnimatedTransform extends AnimatedWithChildren {
     });
   }
 
-  __onEvaluate() {
+  __getProps() {
     return this._transforms.map(transform => {
       const result = {};
       for (const key in transform) {
         const value = transform[key];
         if (value instanceof AnimatedNode) {
-          result[key] = value.__getValue();
+          result[key] = value.__getProps();
         } else {
           result[key] = value;
         }
@@ -53,17 +65,17 @@ class AnimatedTransform extends AnimatedWithChildren {
     });
   }
 
-  __getParams() {
-    const params = [];
-    this._transforms.forEach(transform => {
+  __onEvaluate() {
+    return this._transforms.map(transform => {
+      const result = {};
       for (const key in transform) {
         const value = transform[key];
         if (value instanceof AnimatedNode) {
-          params.push(value);
+          result[key] = value.__getValue();
         }
       }
+      return result;
     });
-    return params;
   }
 
   __getNativeConfig(): any {

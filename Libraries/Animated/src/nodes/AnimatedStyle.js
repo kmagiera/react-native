@@ -23,7 +23,6 @@ class AnimatedStyle extends AnimatedWithChildren {
   _style: Object;
 
   constructor(style: any) {
-    super(Object.values(style).filter(value => value instanceof AnimatedNode));
     style = flattenStyle(style) || {};
     if (style.transform) {
       style = {
@@ -31,6 +30,7 @@ class AnimatedStyle extends AnimatedWithChildren {
         transform: new AnimatedTransform(style.transform),
       };
     }
+    super(Object.values(style).filter(value => value instanceof AnimatedNode));
     this._style = style;
   }
 
@@ -43,7 +43,7 @@ class AnimatedStyle extends AnimatedWithChildren {
         if (!value.__isNative) {
           // We cannot use value of natively driven nodes this way as the value we have access from
           // JS may not be up to date.
-          updatedStyle[key] = value.__getValue();
+          updatedStyle[key] = value.__getProps();
         }
       } else if (value && !Array.isArray(value) && typeof value === 'object') {
         // Support animating nested values (for example: shadowOffset.height)
@@ -75,17 +75,6 @@ class AnimatedStyle extends AnimatedWithChildren {
 
   __onEvaluate() {
     return this._walkStyleAndGetAnimatedValues(this._style);
-  }
-
-  __getParams() {
-    const params = [];
-    for (const key in this._style) {
-      const value = this._style[key];
-      if (value instanceof AnimatedNode) {
-        params.push(value);
-      }
-    }
-    return params;
   }
 
   __makeNative() {

@@ -31,7 +31,7 @@ class AnimatedNode {
     return CoreAnimated.evaluate(this);
   }
   __onEvaluate() {}
-  __getAnimatedValue(): any {
+  __getProps(): any {
     return this.__getValue();
   }
 

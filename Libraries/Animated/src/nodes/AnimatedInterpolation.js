@@ -316,7 +316,7 @@ class AnimatedInterpolation extends AnimatedWithChildren {
   _interpolation: (input: number) => number | string;
 
   constructor(parent: AnimatedNode, config: InterpolationConfigType) {
-    super();
+    super([parent]);
     this._parent = parent;
     this._config = config;
     this._interpolation = createInterpolation(config);
@@ -338,15 +338,6 @@ class AnimatedInterpolation extends AnimatedWithChildren {
 
   interpolate(config: InterpolationConfigType): AnimatedInterpolation {
     return new AnimatedInterpolation(this, config);
-  }
-
-  __attach(): void {
-    this._parent.__addChild(this);
-  }
-
-  __detach(): void {
-    this._parent.__removeChild(this);
-    super.__detach();
   }
 
   __transformDataType(range: Array<any>) {
