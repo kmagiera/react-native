@@ -1,57 +1,42 @@
 
 const ATTACHED_PROPS_SET = new Set();
-const UPDATED_NODES = new Set();
-let enqueuedAnimations = [];
+const UPDATED_NODES = [];
 
-let loopTs = +new Date();
+let loopID = 1;
 let propUpdatesEnqueued = null;
 
-function findUpdatedStyleNodes() {
-    const animatedStyles = new Set();
-    function findAnimatedStyles(node) {
-        if (typeof node.update === 'function') {
-            animatedStyles.add(node);
-        } else {
-            node.__getChildren().forEach(findAnimatedStyles);
-        }
+function findAndUpdateNodes(node) {
+    if (typeof node.update === 'function') {
+        node.update()
+    } else {
+        node.__getChildren().forEach(findAndUpdateNodes);
     }
-    UPDATED_NODES.forEach(findAnimatedStyles);
-    UPDATED_NODES.clear();
-    return animatedStyles;
 }
 
 function runPropUpdates() {
+    const visitedNodes = new Set();
+    for (let i = 0; i < UPDATED_NODES.length; i++) {
+        const node = UPDATED_NODES[i];
+        if (!visitedNodes.has(node)) {
+            visitedNodes.add(node);
+            findAndUpdateNodes(node);
+        }
+    }
+    UPDATED_NODES.length = 0; // clear array
     propUpdatesEnqueued = null;
-    findUpdatedStyleNodes().forEach(style => style.update());
-}
-
-
-function runAnimations() {
-    loopTs = +new Date()
-    const animations = enqueuedAnimations;
-    enqueuedAnimations = [];
-    animations.forEach(anim => {
-        anim();
-    })
-    if (!propUpdatesEnqueued) {
-        setImmediate(runPropUpdates);
-    }
-}
-
-function wantNextFrame(animation) {
-    enqueuedAnimations.push(animation);
-    if (enqueuedAnimations.length === 1) {
-        requestAnimationFrame(runAnimations);
-    }
+    loopID += 1;
 }
 
 function onNodeUpdated(node) {
-    UPDATED_NODES.add(node);
+    UPDATED_NODES.push(node);
+    if (!propUpdatesEnqueued) {
+        propUpdatesEnqueued = setImmediate(runPropUpdates);
+    }
 }
 
 function evaluate(node) {
-    if (node.__lastLoopTs < loopTs) {
-        node.__lastLoopTs = loopTs;
+    if (node.__lastLoopID < loopID) {
+        node.__lastLoopID = loopID;
         return node.__memoizedValue = node.__onEvaluate();
     }
     return node.__memoizedValue;
@@ -60,5 +45,4 @@ function evaluate(node) {
 module.exports = {
     onNodeUpdated,
     evaluate,
-    wantNextFrame,
 }

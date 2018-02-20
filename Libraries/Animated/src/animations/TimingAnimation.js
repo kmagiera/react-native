@@ -1,39 +1,16 @@
-/**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
- *
- * @providesModule TimingAnimation
- * @flow
- * @format
- */
 'use strict';
 
 const AnimatedValue = require('../nodes/AnimatedValue');
+const AnimatedNode = require('../nodes/AnimatedNode');
 const AnimatedValueXY = require('../nodes/AnimatedValueXY');
+const TimingStep = require('../nodes/TimingStep');
 const Animation = require('./Animation');
 
+const {clock} = require('../nodes/AnimatedClock');
+const AnimatedOnChange = require('../nodes/AnimatedOnChange');
+const AnimatedDetach = require('../nodes/AnimatedDetach');
+
 const {shouldUseNativeDriver} = require('../NativeAnimatedHelper');
-const {wantNextFrame} = require('../CoreAnimated');
-
-import type {AnimationConfig, EndCallback} from './Animation';
-
-export type TimingAnimationConfig = AnimationConfig & {
-  toValue: number | AnimatedValue | {x: number, y: number} | AnimatedValueXY,
-  easing?: (value: number) => number,
-  duration?: number,
-  delay?: number,
-};
-
-export type TimingAnimationConfigSingle = AnimationConfig & {
-  toValue: number | AnimatedValue,
-  easing?: (value: number) => number,
-  duration?: number,
-  delay?: number,
-};
 
 let _easeInOut;
 function easeInOut() {
@@ -44,20 +21,45 @@ function easeInOut() {
   return _easeInOut;
 }
 
-class TimingAnimation extends Animation {
-  _startTime: number;
-  _fromValue: number;
-  _toValue: any;
-  _duration: number;
-  _delay: number;
-  _easing: (value: number) => number;
-  _onUpdate: (value: number) => void;
-  _animationFrame: any;
-  _timeout: any;
-  _useNativeDriver: boolean;
+function proxyAnimatedState(target) {
+  const handler = {
+    get(target, key) {
+      const value = target[key];
+      if (value instanceof AnimatedNode) {
+        return value.__getValue();
+      }
+      return value;
+    },
+    set(target, key, val) {
+      const value = target[key];
+      if (value instanceof AnimatedNode) {
+        return value._updateValue(val);
+      } else {
+        target[key] = val;
+      }
+      return true;
+    },
+  };
+  return new Proxy(target, handler);
+}
 
-  constructor(config: TimingAnimationConfigSingle) {
+class TimingAnimation extends Animation {
+  _startTime;
+  _fromValue;
+  _toValue;
+  _duration;
+  _delay;
+  _easing;
+  _onUpdate;
+  _animationFrame;
+  _timeout;
+  _useNativeDriver;
+
+  _finished;
+
+  constructor(config) {
     super();
+    this._config = {...config};
     this._toValue = config.toValue;
     this._easing = config.easing !== undefined ? config.easing : easeInOut();
     this._duration = config.duration !== undefined ? config.duration : 500;
@@ -68,86 +70,27 @@ class TimingAnimation extends Animation {
     this._useNativeDriver = shouldUseNativeDriver(config);
   }
 
-  __getNativeAnimationConfig(): any {
-    const frameDuration = 1000.0 / 60.0;
-    const frames = [];
-    for (let dt = 0.0; dt < this._duration; dt += frameDuration) {
-      frames.push(this._easing(dt / this._duration));
-    }
-    frames.push(this._easing(1));
-    return {
-      type: 'frames',
-      frames,
+  start(value) {
+    this._finished = new AnimatedValue(0);
+    const state = proxyAnimatedState({
+      finished: this._finished,
+      position: value,
+      time: 0,
+      frameTime: 0,
+    });
+
+    const config = {
+      duration: this._duration,
       toValue: this._toValue,
-      iterations: this.__iterations,
     };
+
+    const step = new TimingStep(clock, state, config, this._easing);
+    new AnimatedOnChange(this._finished, new AnimatedDetach(step)).__attach();
+    step.__attach();
   }
 
-  start(
-    fromValue: number,
-    onUpdate: (value: number) => void,
-    onEnd: ?EndCallback,
-    previousAnimation: ?Animation,
-    animatedValue: AnimatedValue,
-  ): void {
-    this.__active = true;
-    this._fromValue = fromValue;
-    this._onUpdate = onUpdate;
-    this.__onEnd = onEnd;
-
-    const start = () => {
-      // Animations that sometimes have 0 duration and sometimes do not
-      // still need to use the native driver when duration is 0 so as to
-      // not cause intermixed JS and native animations.
-      if (this._duration === 0 && !this._useNativeDriver) {
-        this._onUpdate(this._toValue);
-        this.__debouncedOnEnd({finished: true});
-      } else {
-        this._startTime = Date.now();
-        if (this._useNativeDriver) {
-          this.__startNativeAnimation(animatedValue);
-        } else {
-          wantNextFrame(this.onUpdate.bind(this));
-        }
-      }
-    };
-    if (this._delay) {
-      this._timeout = setTimeout(start, this._delay);
-    } else {
-      start();
-    }
-  }
-
-  onUpdate(): void {
-    const now = Date.now();
-    if (now >= this._startTime + this._duration) {
-      if (this._duration === 0) {
-        this._onUpdate(this._toValue);
-      } else {
-        this._onUpdate(
-          this._fromValue + this._easing(1) * (this._toValue - this._fromValue),
-        );
-      }
-      this.__debouncedOnEnd({finished: true});
-      return;
-    }
-
-    this._onUpdate(
-      this._fromValue +
-        this._easing((now - this._startTime) / this._duration) *
-          (this._toValue - this._fromValue),
-    );
-    if (this.__active) {
-      wantNextFrame(this.onUpdate.bind(this));
-    }
-  }
-
-  stop(): void {
-    super.stop();
-    this.__active = false;
-    clearTimeout(this._timeout);
-    // global.cancelAnimationFrame(this._animationFrame);
-    this.__debouncedOnEnd({finished: false});
+  stop() {
+    this._finished && this._finished.setValue(1);
   }
 }
 

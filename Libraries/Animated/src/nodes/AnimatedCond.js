@@ -3,6 +3,10 @@
 const AnimatedNode = require('./AnimatedNode');
 const AnimatedWithInput = require('./AnimatedWithInput');
 
+function val(v) {
+  return v.__getValue ? v.__getValue() : v;
+}
+
 class AnimatedCond extends AnimatedWithInput {
   _condition;
   _ifBlock;
@@ -16,10 +20,10 @@ class AnimatedCond extends AnimatedWithInput {
   }
 
   __onEvaluate() {
-    if (this._condition.__getValue ? this._condition.__getValue() : this._condition) {
-      return this._ifBlock.__getValue ? this._ifBlock.__getValue() : this._ifBlock;
+    if (val(this._condition)) {
+      return val(this._ifBlock);
     } else {
-      return this._elseBlock.__getValue ? this._elseBlock.__getValue() : this._elseBlock;
+      return val(this._elseBlock);
     }
   }
 }

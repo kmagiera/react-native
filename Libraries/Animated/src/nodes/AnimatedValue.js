@@ -58,7 +58,7 @@ class AnimatedValue extends AnimatedWithInput {
     super.__detach();
   }
 
-  __getValue(): number {
+  __onEvaluate() {
     return this._value + this._offset;
   }
 
@@ -246,23 +246,23 @@ class AnimatedValue extends AnimatedWithInput {
     const previousAnimation = this._animation;
     this._animation && this._animation.stop();
     this._animation = animation;
-    animation.start(
-      this._value,
-      value => {
-        // Natively driven animations will never call into that callback, therefore we can always
-        // pass flush = true to allow the updated value to propagate to native with setNativeProps
-        this._updateValue(value, true /* flush */);
-      },
-      result => {
-        this._animation = null;
-        if (handle !== null) {
-          InteractionManager.clearInteractionHandle(handle);
-        }
-        callback && callback(result);
-      },
-      previousAnimation,
-      this,
-    );
+    animation.start(this);
+    //   this._value,
+    //   value => {
+    //     // Natively driven animations will never call into that callback, therefore we can always
+    //     // pass flush = true to allow the updated value to propagate to native with setNativeProps
+    //     this._updateValue(value, true /* flush */);
+    //   },
+    //   result => {
+    //     this._animation = null;
+    //     if (handle !== null) {
+    //       InteractionManager.clearInteractionHandle(handle);
+    //     }
+    //     callback && callback(result);
+    //   },
+    //   previousAnimation,
+    //   this,
+    // );
   }
 
   /**

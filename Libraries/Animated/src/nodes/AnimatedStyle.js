@@ -30,7 +30,7 @@ class AnimatedStyle extends AnimatedWithInput {
         transform: new AnimatedTransform(style.transform),
       };
     }
-    super(Object.values(style).filter(value => value instanceof AnimatedNode));
+    super(Object.values(style));
     this._style = style;
   }
 

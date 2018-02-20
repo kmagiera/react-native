@@ -30,7 +30,9 @@ class AnimatedNode {
   __getValue() {
     return CoreAnimated.evaluate(this);
   }
-  __onEvaluate() {}
+  __onEvaluate() {
+    throw new Excaption('Missing implementation of onEvaluate');
+  }
   __getProps(): any {
     return this.__getValue();
   }
@@ -73,7 +75,7 @@ class AnimatedNode {
   }
 
   /* Methods and props used by native Animated impl */
-  __lastLoopTs = 0;
+  __lastLoopID = 0;
   __memoizedValue = null;
   __isNative: boolean;
   __nativeTag: ?number;
