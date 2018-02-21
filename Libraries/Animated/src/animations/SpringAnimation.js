@@ -18,6 +18,10 @@ const AnimatedValueXY = require('../nodes/AnimatedValueXY');
 const Animation = require('./Animation');
 const SpringConfig = require('../SpringConfig');
 const SpringNode = require('../nodes/SpringNode');
+const AnimatedOnChange = require('../nodes/AnimatedOnChange');
+const AnimatedDetach = require('../nodes/AnimatedDetach');
+
+const {clock} = require('../nodes/AnimatedClock');
 
 const invariant = require('fbjs/lib/invariant');
 const {shouldUseNativeDriver} = require('../NativeAnimatedHelper');
@@ -176,12 +180,11 @@ class SpringAnimation extends Animation {
   }
 
   start(value) {
-    this._finished = AnimatedValue(0);
+    this._finished = new AnimatedValue(0);
     const state = proxyAnimatedState({
       finished: this._finished,
       velocity: this._initialVelocity,
       position: value,
-      frameTime: 0,
       time: 0,
     });
 
@@ -195,7 +198,7 @@ class SpringAnimation extends Animation {
       restDisplacementThreshold: this._restDisplacementThreshold,
     };
 
-    const step = new SpringNode(state, config);
+    const step = new SpringNode(clock, state, config);
     new AnimatedOnChange(this._finished, new AnimatedDetach(step)).__attach();
     step.__attach();
   }

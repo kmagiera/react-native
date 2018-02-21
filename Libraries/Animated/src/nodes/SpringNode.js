@@ -3,21 +3,14 @@
 const AnimatedNode = require('./AnimatedNode');
 const AnimatedWithInput = require('./AnimatedWithInput');
 
-const {clock} = require('./AnimatedClock');
+const MAX_STEPS_MS = 64;
 
-function spring(state, config) {
-  let now = val(clock);
-  const lastTime = state.time || now;
-  const frameTime = state.frameTime;
+function spring(now, state, config) {
+  const lastTimeMs = state.time || now;
   const lastPosition = state.position;
   const lastVelocity = state.velocity;
 
-  const MAX_STEPS = 64;
-  if (now > lastTime + MAX_STEPS) {
-    now = lastTime + MAX_STEPS;
-  }
-
-  const deltaTime = (now - lastTime) / 1000;
+  const deltaTimeMs = Math.min(now - lastTimeMs, MAX_STEPS_MS);
 
   const c = config.damping;
   const m = config.mass;
@@ -31,7 +24,7 @@ function spring(state, config) {
 
   let position = 0.0;
   let velocity = 0.0;
-  const t = frameTime + deltaTime;
+  const t = deltaTimeMs / 1000.0; // in seconds
   if (zeta < 1) {
     // Under damped
     const envelope = Math.exp(-zeta * omega0 * t);
@@ -63,7 +56,6 @@ function spring(state, config) {
   state.time = now;
   state.velocity = velocity;
   state.position = position;
-  state.frameTime = frameTime + deltaTime;
 
   // Conditions for stopping the spring animation
   let isOvershooting = false;
@@ -93,11 +85,13 @@ function spring(state, config) {
 }
 
 class SpringNode extends AnimatedWithInput {
+  _clock;
   _state;
   _config;
 
-  constructor(state, config) {
+  constructor(clock, state, config) {
     super([clock]);
+    this._clock = clock;
     this._state = state;
     this._config = config;
   }
@@ -107,7 +101,7 @@ class SpringNode extends AnimatedWithInput {
   }
 
   __onEvaluate() {
-    spring(this._state, this._config);
+    spring(this._clock.__getValue(), this._state, this._config);
   }
 }
 

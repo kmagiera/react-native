@@ -42,13 +42,18 @@ class FadeInView extends React.Component<$FlowFixMeProps, any> {
     }
   }
   componentDidMount() {
-    this._animation = Animated.timing(       // Uses easing functions
-      this.state.firstAnim, // The value to drive
-      {
-        toValue: 0,        // Target
-        duration: 2000,    // Configuration
-      },
-    );
+    // this._animation = Animated.timing(       // Uses easing functions
+    //   this.state.firstAnim, // The value to drive
+    //   {
+    //     toValue: 0,        // Target
+    //     duration: 2000,    // Configuration
+    //   },
+    // );
+    this._animation = Animated.spring(this.state.firstAnim, {
+      toValue: 0,
+      tension: 20,
+      friction: 0.5
+    });
     this._animation.start();             // Don't forget start!
     // Animated.timing(this.state.secondAnim, { toValue: 0, duration: 5000}).start()
   }
