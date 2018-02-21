@@ -327,7 +327,7 @@ class AnimatedInterpolation extends AnimatedWithInput {
     super.__makeNative();
   }
 
-  __getValue(): number | string {
+  __onEvaluate() {
     const parentValue: number = this._parent.__getValue();
     invariant(
       typeof parentValue === 'number',
