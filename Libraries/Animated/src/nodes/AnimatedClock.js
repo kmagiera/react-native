@@ -26,6 +26,7 @@ class AnimatedClock extends AnimatedValue {
   __detach() {
     if (this._frameCallback) {
       cancelAnimationFrame(this._frameCallback);
+      this._frameCallback = null;
     }
     super.__detach();
   }
