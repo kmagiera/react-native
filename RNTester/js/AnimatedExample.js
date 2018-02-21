@@ -33,16 +33,34 @@ class FadeInView extends React.Component<$FlowFixMeProps, any> {
     super(props);
     const firstAnim = new Animated.Value(100);
     const secondAnim = new Animated.Value(-50);
-    const sum = Animated.add(firstAnim, secondAnim)
-    const transX = Animated.cond(Animated.lessThan(sum, 25), sum, 10)
+    // const sum = Animated.add(firstAnim, secondAnim)
+    // const transX = Animated.cond(Animated.lessThan(sum, 25), sum, 10)
 
-    const prev = new Animated.Value(0);
-    const diff = Animated.set(prev, Animated.add(firstAnim, Animated.multiply(-1, prev)));
+    // const stash = new Animated.Value(0);
+    // const prev = new Animated.Value(0);
+    // const diff = Animated.block([
+    //   Animated.set(stash, Animated.add(firstAnim, Animated.multiply(-1, prev))),
+    //   Animated.set(prev, firstAnim),
+    //   stash
+    // ])
+    const diff = Animated.diff(firstAnim);
+
+    const acc = Animated.acc(diff);
+
+    const diffClamp = Animated.diffClamp(firstAnim, 0, 20);
+
+    Animated.onChange(acc, Animated.call([acc], ([v]) => {
+      console.log("ANIM", v)
+    })).__attach();
+
 
     this.state = {
       firstAnim,
       secondAnim,
-      transX,
+      // transX,
+      acc,
+      diff,
+      diffClamp,
     }
   }
   componentDidMount() {
@@ -70,7 +88,7 @@ class FadeInView extends React.Component<$FlowFixMeProps, any> {
         style={{
           // opacity: Animated.add(this.state.fadeAnim, this.state.offset)
           transform: [
-            { translateX: this.state.firstAnim }
+            { translateX: Animated.add(0, this.state.diffClamp) }
           ]
         }}>
         {this.props.children}

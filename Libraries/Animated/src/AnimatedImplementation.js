@@ -14,11 +14,11 @@
 'use strict';
 
 const {AnimatedEvent, attachNativeEvent} = require('./AnimatedEvent');
-const AnimatedDiffClamp = require('./nodes/AnimatedDiffClamp');
 const AnimatedCond = require('./nodes/AnimatedCond');
 const AnimatedSet = require('./nodes/AnimatedSet');
 const AnimatedInterpolation = require('./nodes/AnimatedInterpolation');
 const AnimatedOp = require('./nodes/AnimatedOp');
+const AnimatedOnChange = require('./nodes/AnimatedOnChange');
 const AnimatedNode = require('./nodes/AnimatedNode');
 const AnimatedProps = require('./nodes/AnimatedProps');
 const AnimatedTracking = require('./nodes/AnimatedTracking');
@@ -48,21 +48,15 @@ type CompositeAnimation = {
   _isUsingNativeDriver: () => boolean,
 };
 
-const add = function(a: AnimatedNode | number, b: AnimatedNode | number) {
+const add = function(a, b) {
   return new AnimatedOp([a, b], ([a, b]) => a + b);
 };
 
-const divide = function(
-  a: AnimatedNode | number,
-  b: AnimatedNode | number,
-): AnimatedDivision {
+const divide = function(a, b) {
   return new AnimatedOp([a, b], ([a, b]) => a / b);
 };
 
-const multiply = function(
-  a: AnimatedNode | number,
-  b: AnimatedNode | number,
-): AnimatedMultiplication {
+const multiply = function(a, b) {
   return new AnimatedOp([a, b], ([a, b]) => a * b);
 };
 
@@ -82,6 +76,13 @@ const lessThan = function(a, b) {
   return new AnimatedOp([a, b], ([a, b]) => a < b);
 };
 
+const defined = function(v) {
+  return new AnimatedOp(
+    [v],
+    ([v]) => v !== null && v !== undefined && !isNaN(v),
+  );
+};
+
 const or = function(a, b) {
   return new AnimatedOp([a, b], ([a, b]) => a || b);
 };
@@ -94,20 +95,47 @@ const block = function(items) {
   return new AnimatedOp(items, values => values[values.length - 1]);
 };
 
-const call = function(func, items) {
+const call = function(items, func) {
   return new AnimatedOp(items, values => func(values) && 0);
 };
 
-const modulo = function(a: AnimatedNode, modulus: number): AnimatedModulo {
-  return new AnimatedOp([a, b], ([a, b]) => (a % b + b) % b);
+const modulo = function(a, modulus) {
+  return new AnimatedOp([a, modulus], ([a, b]) => (a % b + b) % b);
 };
 
-const diffClamp = function(
-  a: AnimatedNode,
-  min: number,
-  max: number,
-): AnimatedDiffClamp {
-  return new AnimatedDiffClamp(a, min, max);
+const onChange = function(value, action) {
+  return new AnimatedOnChange(value, action);
+};
+
+const min = function(a, b) {
+  return cond(lessThan(a, b), a, b);
+};
+
+const max = function(a, b) {
+  return cond(lessThan(a, b), b, a);
+};
+
+const diff = function(v) {
+  const stash = new AnimatedValue(0);
+  const prev = new AnimatedValue();
+  return block([
+    set(stash, cond(defined(prev), add(v, multiply(-1, prev)), 0)),
+    set(prev, v),
+    stash,
+  ]);
+};
+
+const acc = function(v) {
+  const acc = new AnimatedValue(0);
+  return set(acc, add(acc, v));
+};
+
+const diffClamp = function(a, minVal, maxVal) {
+  const value = new AnimatedValue();
+  return set(
+    value,
+    min(max(add(cond(defined(value), value, a), diff(a)), minVal), maxVal),
+  );
 };
 
 const _combineCallbacks = function(
@@ -605,6 +633,12 @@ module.exports = {
   eq,
   or,
   and,
+  onChange,
+  call,
+  min,
+  max,
+  diff,
+  acc,
 
   /**
    * Creates a new Animated value composed by dividing the first Animated value

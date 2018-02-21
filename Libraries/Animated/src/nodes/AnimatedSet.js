@@ -15,6 +15,7 @@ class AnimatedSet extends AnimatedWithInput {
   __onEvaluate() {
     const newValue = this._value.__getValue();
     this._what._updateValue(newValue);
+    // console.log("SET", newValue);
     return newValue;
   }
 }
