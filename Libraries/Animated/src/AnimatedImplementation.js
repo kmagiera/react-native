@@ -94,6 +94,10 @@ const block = function(items) {
   return new AnimatedOp(items, values => values[values.length - 1]);
 };
 
+const call = function(func, items) {
+  return new AnimatedOp(items, values => func(values) && 0);
+};
+
 const modulo = function(a: AnimatedNode, modulus: number): AnimatedModulo {
   return new AnimatedOp([a, b], ([a, b]) => (a % b + b) % b);
 };
@@ -596,6 +600,7 @@ module.exports = {
 
   cond,
   block,
+  set,
   lessThan,
   eq,
   or,

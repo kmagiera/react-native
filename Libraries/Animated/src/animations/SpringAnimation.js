@@ -20,6 +20,7 @@ const SpringConfig = require('../SpringConfig');
 const SpringNode = require('../nodes/SpringNode');
 const AnimatedOnChange = require('../nodes/AnimatedOnChange');
 const AnimatedDetach = require('../nodes/AnimatedDetach');
+const AnimatedOp = require('../nodes/AnimatedOp');
 
 const {clock} = require('../nodes/AnimatedClock');
 
@@ -199,7 +200,15 @@ class SpringAnimation extends Animation {
     };
 
     const step = new SpringNode(clock, state, config);
-    new AnimatedOnChange(this._finished, new AnimatedDetach(step)).__attach();
+    const detach = new AnimatedDetach(step);
+    const clb = finished => {
+      console.log('FINISHED', finished);
+    };
+    const call = new AnimatedOp([this._finished], ([finished]) =>
+      clb(finished),
+    );
+    const block = new AnimatedOp([detach, call], () => {});
+    new AnimatedOnChange(this._finished, block).__attach();
     step.__attach();
   }
 

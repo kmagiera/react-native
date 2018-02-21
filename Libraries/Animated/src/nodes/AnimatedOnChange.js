@@ -22,7 +22,6 @@ class AnimatedOnChange extends AnimatedWithInput {
 
   __onEvaluate() {
     const newValue = this._value.__getValue();
-    console.log("ON CHANGE", newValue, this._lastValue);
     if (newValue !== this._lastValue) {
       this._what.__getValue();
       this._lastValue = newValue;

@@ -35,6 +35,10 @@ class FadeInView extends React.Component<$FlowFixMeProps, any> {
     const secondAnim = new Animated.Value(-50);
     const sum = Animated.add(firstAnim, secondAnim)
     const transX = Animated.cond(Animated.lessThan(sum, 25), sum, 10)
+
+    const prev = new Animated.Value(0);
+    const diff = Animated.set(prev, Animated.add(firstAnim, Animated.multiply(-1, prev)));
+
     this.state = {
       firstAnim,
       secondAnim,
@@ -51,8 +55,8 @@ class FadeInView extends React.Component<$FlowFixMeProps, any> {
     // );
     this._animation = Animated.spring(this.state.firstAnim, {
       toValue: 0,
-      tension: 20,
-      friction: 0.5
+      // tension: 20,
+      // friction: 0.5
     });
     this._animation.start();             // Don't forget start!
     // Animated.timing(this.state.secondAnim, { toValue: 0, duration: 5000}).start()
