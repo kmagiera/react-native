@@ -6,16 +6,17 @@ LOCAL_SRC_FILES:= \
 	folly/Unicode.cpp \
 	folly/Conv.cpp \
 	folly/Demangle.cpp \
-  	folly/detail/MallocImpl.cpp \
-  	folly/StringBase.cpp \
-  	folly/dynamic.cpp \
+	folly/detail/MallocImpl.cpp \
+	folly/StringBase.cpp \
+	folly/dynamic.cpp \
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)
 LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)
 
+CXX11_FLAGS := -std=c++1y
 LOCAL_CFLAGS += -fexceptions -fno-omit-frame-pointer -frtti
 
-FOLLY_FLAGS := -DFOLLY_NO_CONFIG=1 -DFOLLY_HAVE_CLOCK_GETTIME=1 -DFOLLY_HAVE_MEMRCHR=1
+FOLLY_FLAGS := -DFOLLY_NO_CONFIG=1 -DFOLLY_HAVE_CLOCK_GETTIME=1 -DFOLLY_HAVE_MEMRCHR=1 -DFOLLY_USE_LIBCPP=1
 LOCAL_CFLAGS += $(FOLLY_FLAGS)
 
 LOCAL_EXPORT_CPPFLAGS := $(FOLLY_FLAGS)
